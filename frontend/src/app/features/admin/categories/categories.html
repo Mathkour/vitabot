@@ -1,0 +1,58 @@
+<div class="categories">
+  <div class="card categories__card">
+    <h2>Categories</h2>
+    <p class="categories__subtext">
+      Organise your knowledge base into categories. Each document and chat query can be scoped to a category.
+    </p>
+
+    @if (addSuccess()) {
+      <p class="categories__success pill pill-success">
+        <span class="material-symbols-outlined categories__pill-icon">check_circle</span>
+        {{ addSuccess() }}
+      </p>
+    }
+
+    @if (addError()) {
+      <p class="error-text categories__error">{{ addError() }}</p>
+    }
+
+    <div class="categories__add-row">
+      <input
+        class="categories__add-input"
+        type="text"
+        placeholder="Category name"
+        [ngModel]="newName()"
+        (ngModelChange)="newName.set($event)"
+        (keydown.enter)="add()"
+      />
+      <button
+        type="button"
+        class="btn btn-primary"
+        [disabled]="isAdding() || !newName().trim()"
+        (click)="add()"
+      >
+        <span class="material-symbols-outlined">add</span>
+        {{ isAdding() ? 'Adding...' : 'Add category' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="card categories__list-card">
+    <h3>Existing categories</h3>
+
+    @if (loadError()) {
+      <p class="error-text">{{ loadError() }}</p>
+    } @else if (categories().length === 0) {
+      <p class="categories__empty">No categories yet. Add one above.</p>
+    } @else {
+      <ul class="categories__list">
+        @for (cat of categories(); track cat.id) {
+          <li class="categories__item">
+            <span class="material-symbols-outlined categories__item-icon">label</span>
+            <span class="categories__item-name">{{ cat.name }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

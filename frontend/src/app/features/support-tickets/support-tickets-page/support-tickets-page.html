@@ -1,0 +1,74 @@
+<div class="support">
+  <div class="support__header">
+    <h2>{{ lang.translate('supportTicket.myTicketsTitle') }}</h2>
+    <p class="support__subtext">{{ lang.translate('supportTicket.myTicketsSubtitle') }}</p>
+  </div>
+
+  @if (isLoading()) {
+    <div class="support__status">
+      <span class="support__spinner"></span>
+      {{ lang.translate('common.loading') }}
+    </div>
+  } @else if (errorMessage()) {
+    <p class="error-text">{{ errorMessage() }}</p>
+  } @else if (tickets().length === 0) {
+    <p class="support__empty">{{ lang.translate('supportTicket.noTickets') }}</p>
+  } @else {
+    <div class="support__list">
+      @for (ticket of tickets(); track ticket.id) {
+        <div class="card support__item">
+          <button type="button" class="support__item-toggle" (click)="toggleTicket(ticket)">
+            <span class="support__item-question">{{ ticket.question }}</span>
+            <span class="pill" [class.pill-success]="ticket.status === 'resolved'" [class.pill-info]="ticket.status === 'pending'">
+              {{ lang.translate(ticket.status === 'resolved' ? 'supportTicket.statusResolved' : 'supportTicket.statusPending') }}
+            </span>
+            <span class="material-symbols-outlined">
+              {{ expandedTicketId() === ticket.id ? 'expand_less' : 'expand_more' }}
+            </span>
+          </button>
+
+          @if (expandedTicketId() === ticket.id) {
+            <div class="support__thread">
+              @if (isLoadingMessages()) {
+                <div class="support__status">
+                  <span class="support__spinner"></span>
+                  {{ lang.translate('common.loading') }}
+                </div>
+              } @else {
+                @for (message of messages(); track message.id) {
+                  <div class="support__message" [class.support__message--admin]="message.sender === 'admin'">
+                    <div class="support__message-bubble">{{ message.content }}</div>
+                  </div>
+                }
+              }
+
+              @if (sendError()) {
+                <p class="error-text">{{ sendError() }}</p>
+              }
+
+              @if (ticket.status === 'pending') {
+                <textarea
+                  class="support__reply-textarea"
+                  rows="2"
+                  [placeholder]="lang.translate('supportTicket.replyPlaceholder')"
+                  [ngModel]="draftMessage()"
+                  (ngModelChange)="draftMessage.set($event)"
+                ></textarea>
+                <div class="support__reply-actions">
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    [disabled]="isSendingMessage() || !draftMessage().trim()"
+                    (click)="sendMessage(ticket)"
+                  >
+                    {{ isSendingMessage() ? lang.translate('supportTicket.sending') : lang.translate('supportTicket.send') }}
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

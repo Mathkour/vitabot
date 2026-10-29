@@ -1,0 +1,132 @@
+<header class="topbar">
+  @if (showMenuToggle()) {
+    <button
+      type="button"
+      class="topbar__menu-btn"
+      (click)="menuToggle.emit()"
+      title="Toggle menu"
+      aria-label="Toggle menu"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+  }
+
+  @if (showBrand() && tenantTheme.logoUrl()) {
+    <div class="topbar__brand" routerLink="/chat">
+      <img class="topbar__logo" [src]="tenantTheme.logoUrl()" alt="" />
+    </div>
+
+    <div class="topbar__quick-links">
+      <button type="button" class="topbar__quick-link" routerLink="/chat">
+        <span class="material-symbols-outlined">smart_toy</span>
+        <span class="topbar__quick-link-label">Bot</span>
+      </button>
+      <button type="button" class="topbar__quick-link" (click)="goToFaq()">
+        <span class="material-symbols-outlined">help</span>
+        <span class="topbar__quick-link-label">FAQ</span>
+      </button>
+      @if (showVideos()) {
+        <button type="button" class="topbar__quick-link" routerLink="/videos">
+          <span class="material-symbols-outlined">smart_display</span>
+          <span class="topbar__quick-link-label">{{ lang.translate('nav.videos') }}</span>
+        </button>
+      }
+      @if (showDocumentIndex()) {
+        <button type="button" class="topbar__quick-link" routerLink="/document-index">
+          <span class="material-symbols-outlined">manage_search</span>
+          <span class="topbar__quick-link-label">{{ lang.translate('nav.documentIndex') }}</span>
+        </button>
+        <button type="button" class="topbar__quick-link" routerLink="/ask-ai">
+          <span class="material-symbols-outlined">auto_awesome</span>
+          <span class="topbar__quick-link-label">{{ lang.translate('nav.askAi') }}</span>
+        </button>
+      }
+    </div>
+  }
+  <div class="topbar__spacer"></div>
+
+  <div class="topbar__actions">
+    @if (showSupportBell()) {
+      <div class="topbar__notifications">
+        <button
+          class="topbar__icon-btn topbar__bell-btn"
+          type="button"
+          (click)="toggleNotifications()"
+          [title]="lang.translate('supportTicket.myTicketsTitle')"
+        >
+          <span class="material-symbols-outlined">notifications</span>
+          @if (unseenResolvedTicketsCount() > 0) {
+            <span class="topbar__bell-badge">{{ unseenResolvedTicketsCount() }}</span>
+          }
+        </button>
+
+        @if (isNotificationsOpen()) {
+          <div class="topbar__menu-overlay" (click)="closeNotifications()"></div>
+          <div class="topbar__notifications-panel" (click)="$event.stopPropagation()">
+            <div class="topbar__notifications-header">
+              {{ lang.translate('topbar.notifications') }}
+            </div>
+            @if (unseenTickets().length === 0) {
+              <p class="topbar__notifications-empty">{{ lang.translate('topbar.noNotificationsYet') }}</p>
+            } @else {
+              <ul class="topbar__notifications-list">
+                @for (ticket of unseenTickets(); track ticket.id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="topbar__notification-item"
+                      (click)="openTicketFromNotification(ticket)"
+                    >
+                      <span class="topbar__notification-question">{{ ticket.question }}</span>
+                      @if (ticket.latest_admin_message) {
+                        <span class="topbar__notification-preview">{{ ticket.latest_admin_message }}</span>
+                      }
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <button class="topbar__icon-btn" type="button" (click)="toggleLanguage()" title="EN / AR">
+      {{ lang.lang() === 'en' ? 'AR' : 'EN' }}
+    </button>
+
+    <button class="topbar__icon-btn" type="button" (click)="toggleTheme()" title="Toggle theme">
+      <span class="material-symbols-outlined">
+        {{ theme.theme() === 'dark' ? 'light_mode' : 'dark_mode' }}
+      </span>
+    </button>
+
+    <div class="topbar__divider"></div>
+
+    <div class="topbar__user" (click)="toggleProfileMenu()">
+      @if (auth.isSuperadmin()) {
+        <span class="pill topbar__superadmin-badge">{{ lang.translate('topbar.superAdmin') }}</span>
+      }
+      <div class="topbar__avatar">{{ initials }}</div>
+      <div class="topbar__user-info">
+        <span class="topbar__user-email">{{ displayName }}</span>
+        <span class="topbar__user-role">{{ auth.currentUser().role }}</span>
+      </div>
+      <span class="material-symbols-outlined topbar__user-caret">expand_more</span>
+    </div>
+  </div>
+
+  @if (isProfileMenuOpen()) {
+    <div class="topbar__menu-overlay" (click)="closeProfileMenu()"></div>
+    <div class="topbar__profile-menu" (click)="$event.stopPropagation()">
+      <button type="button" class="topbar__menu-item" (click)="goToProfile()">
+        <span class="material-symbols-outlined">person</span>
+        {{ lang.translate('topbar.myProfile') }}
+      </button>
+      <button type="button" class="topbar__menu-item topbar__menu-item--danger" (click)="logout()">
+        <span class="material-symbols-outlined">logout</span>
+        {{ lang.translate('topbar.logout') }}
+      </button>
+    </div>
+  }
+</header>

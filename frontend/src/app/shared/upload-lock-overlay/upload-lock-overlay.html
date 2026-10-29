@@ -1,0 +1,17 @@
+@if (uploadLock.state()) {
+  <div class="upload-lock-overlay">
+    <div class="upload-lock-card">
+      <span class="upload-lock-spinner"></span>
+      <p class="upload-lock-text">
+        {{ lang.translate('uploadLock.uploading') }} {{ uploadLock.state()!.filename }}...
+      </p>
+      <p class="upload-lock-hint">{{ lang.translate('uploadLock.hint') }}</p>
+
+      @if (uploadLock.state()!.onCancel) {
+        <button type="button" class="btn btn-secondary upload-lock-cancel" (click)="cancel()">
+          {{ lang.translate('uploadLock.cancel') }}
+        </button>
+      }
+    </div>
+  </div>
+}

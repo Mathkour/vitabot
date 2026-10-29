@@ -1,0 +1,87 @@
+<div class="companies">
+  <div class="companies__header">
+    <div>
+      <h2>{{ lang.translate('companies.title') }}</h2>
+      <p class="companies__subtext">{{ lang.translate('companies.subtitle') }}</p>
+    </div>
+  </div>
+
+  <div class="card companies__create-card">
+    <form class="companies__create-form" (ngSubmit)="createCompany()">
+      <input
+        type="text"
+        class="companies__create-input"
+        [(ngModel)]="newCompanyName"
+        name="newCompanyName"
+        [placeholder]="lang.translate('companies.namePlaceholder')"
+      />
+      <button type="submit" class="btn btn-primary" [disabled]="isCreating() || !newCompanyName().trim()">
+        {{ isCreating() ? '…' : lang.translate('companies.create') }}
+      </button>
+    </form>
+    @if (createError()) {
+      <p class="error-text">{{ createError() }}</p>
+    }
+  </div>
+
+  @if (isLoading()) {
+    <div class="companies__loading">
+      <span class="companies__spinner"></span>
+      {{ lang.translate('common.loading') }}
+    </div>
+  } @else if (loadError()) {
+    <p class="error-text">{{ loadError() }}</p>
+  } @else if (companies().length === 0) {
+    <p class="companies__empty">{{ lang.translate('companies.noCompanies') }}</p>
+  } @else {
+    <div class="card companies__table-card">
+      <table class="companies__table">
+        <thead>
+          <tr>
+            <th>{{ lang.translate('companies.colName') }}</th>
+            <th>{{ lang.translate('companies.colUserCount') }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (company of companies(); track company.id) {
+            <tr>
+              <td>
+                @if (editingId() === company.id) {
+                  <input
+                    type="text"
+                    class="companies__edit-input"
+                    [(ngModel)]="editingName"
+                    name="editingName"
+                    (keyup.enter)="saveEdit(company)"
+                    (keyup.escape)="cancelEdit()"
+                  />
+                } @else {
+                  {{ company.name }}
+                }
+              </td>
+              <td>{{ company.user_count }}</td>
+              <td class="companies__actions">
+                @if (editingId() === company.id) {
+                  <button type="button" class="companies__action-btn" (click)="saveEdit(company)">
+                    {{ lang.translate('common.save') }}
+                  </button>
+                  <button type="button" class="companies__action-btn" (click)="cancelEdit()">
+                    {{ lang.translate('common.cancel') }}
+                  </button>
+                } @else {
+                  <button type="button" class="companies__action-btn" (click)="startEdit(company)">
+                    <span class="material-symbols-outlined">edit</span>
+                  </button>
+                  <button type="button" class="companies__action-btn companies__action-btn--danger" (click)="deleteCompany(company)">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

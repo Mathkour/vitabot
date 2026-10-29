@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_vita_bot_link" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.cpbot.vita.bot.link</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div class="app_settings_block" data-string="Vita Bot" string="Vita Bot" data-key="cpbot_vita_bot_link" groups="base.group_system">
+                    <h2>Vita Bot</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="vita_bot_client_key" string="Client Key"/>
+                                <div class="text-muted">
+                                    Identifies this company to Vita Care's cpbot, so Ask Odoo
+                                    questions route to this company's own Odoo data.
+                                </div>
+                                <div class="content-group">
+                                    <field name="vita_bot_client_key" class="o_light_label"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="vita_bot_sso_secret" string="SSO Secret"/>
+                                <div class="text-muted">
+                                    Shared secret for signing into Vita Care's cpbot. Get this
+                                    value from Vita Care over a secure channel and paste it here —
+                                    never share it by email or chat.
+                                </div>
+                                <div class="content-group">
+                                    <field name="vita_bot_sso_secret" password="True" class="o_light_label"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="vita_bot_backend_url" string="Backend URL (advanced)"/>
+                                <div class="text-muted">
+                                    Leave blank unless Vita Care asks you to change it.
+                                </div>
+                                <div class="content-group">
+                                    <field name="vita_bot_backend_url" class="o_light_label"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="vita_bot_frontend_url" string="Frontend URL (advanced)"/>
+                                <div class="text-muted">
+                                    Leave blank unless Vita Care asks you to change it.
+                                </div>
+                                <div class="content-group">
+                                    <field name="vita_bot_frontend_url" class="o_light_label"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="vita_bot_company_domain" string="Company Domain (advanced)"/>
+                                <div class="text-muted">
+                                    Leave blank unless Vita Care asks you to change it.
+                                </div>
+                                <div class="content-group">
+                                    <field name="vita_bot_company_domain" class="o_light_label"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

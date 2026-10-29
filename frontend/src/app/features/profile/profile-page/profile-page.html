@@ -1,0 +1,114 @@
+<div class="profile">
+  <div class="card profile__card">
+    <button type="button" class="profile__back-btn" (click)="goToChat()">
+      <span class="material-symbols-outlined">arrow_back</span>
+      {{ lang.translate('profile.back') }}
+    </button>
+
+    <div class="profile__header">
+      <div class="profile__avatar">{{ initials }}</div>
+      <div class="profile__header-info">
+        <h2 class="profile__name">{{ auth.currentUser().username || auth.currentUser().email }}</h2>
+        <span class="pill pill-info profile__role-pill">{{ auth.currentUser().role }}</span>
+      </div>
+    </div>
+
+    <h3 class="profile__section-title">{{ lang.translate('profile.personalInfo') }}</h3>
+
+    @if (successMessage()) {
+      <p class="profile__success pill pill-success">
+        <span class="material-symbols-outlined profile__pill-icon">check_circle</span>
+        {{ successMessage() }}
+      </p>
+    }
+
+    @if (errorMessage()) {
+      <p class="error-text profile__error">{{ errorMessage() }}</p>
+    }
+
+    <form class="profile__form" (ngSubmit)="saveUsername()">
+      <div class="form-field">
+        <label for="profile-email">{{ lang.translate('common.email') }}</label>
+        <input id="profile-email" type="email" [value]="auth.currentUser().email" disabled />
+      </div>
+
+      <div class="form-field">
+        <label for="profile-username">{{ lang.translate('common.username') }}</label>
+        <input
+          id="profile-username"
+          type="text"
+          name="username"
+          [ngModel]="usernameDraft()"
+          (ngModelChange)="usernameDraft.set($event)"
+          [placeholder]="lang.translate('profile.usernamePlaceholder')"
+        />
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary profile__submit"
+        [disabled]="isSaving() || !usernameDraft().trim()"
+      >
+        {{ isSaving() ? lang.translate('profile.saving') : lang.translate('profile.saveChanges') }}
+      </button>
+    </form>
+
+    <h3 class="profile__section-title profile__section-title--spaced">
+      {{ lang.translate('profile.contactInfo') }}
+    </h3>
+
+    @if (phoneSuccessMessage()) {
+      <p class="profile__success pill pill-success">
+        <span class="material-symbols-outlined profile__pill-icon">check_circle</span>
+        {{ phoneSuccessMessage() }}
+      </p>
+    }
+
+    @if (phoneErrorMessage()) {
+      <p class="error-text profile__error">{{ phoneErrorMessage() }}</p>
+    }
+
+    <form class="profile__form" (ngSubmit)="savePhone()">
+      <div class="form-field">
+        <label for="profile-phone">{{ lang.translate('profile.phoneNumber') }}</label>
+        <div class="profile__phone-row">
+          <div class="profile__country-select-wrap">
+            <img
+              class="profile__country-flag"
+              [src]="flagUrl(selectedCountryIso())"
+              [alt]="selectedCountryIso()"
+            />
+            <select
+              id="profile-country-code"
+              class="profile__country-select"
+              [ngModel]="countryCodeDraft()"
+              (ngModelChange)="countryCodeDraft.set($event)"
+              name="countryCode"
+            >
+              @for (country of countries; track country.dialCode) {
+                <option [value]="country.dialCode">{{ country.name }} ({{ country.dialCode }})</option>
+              }
+            </select>
+          </div>
+          <input
+            id="profile-phone"
+            class="profile__phone-input"
+            type="tel"
+            name="phone"
+            [ngModel]="phoneDraft()"
+            (ngModelChange)="phoneDraft.set($event)"
+            [placeholder]="lang.translate('profile.phonePlaceholder')"
+          />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary profile__submit"
+        [disabled]="isSavingPhone() || !phoneDraft().trim()"
+      >
+        {{ isSavingPhone() ? lang.translate('profile.saving') : lang.translate('profile.savePhone') }}
+      </button>
+    </form>
+  </div>
+</div>

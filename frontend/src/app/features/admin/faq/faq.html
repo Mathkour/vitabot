@@ -1,0 +1,592 @@
+<div class="faq-admin">
+  <div class="faq-admin__header">
+    <h2>{{ lang.translate('faqAdmin.title') }}</h2>
+    <p class="faq-admin__subtext">{{ lang.translate('faqAdmin.subtitle') }}</p>
+  </div>
+
+  <div class="faq-admin__tabs">
+    <button
+      type="button"
+      class="faq-admin__tab"
+      [class.faq-admin__tab--active]="activeTab() === 'faq'"
+      (click)="setActiveTab('faq')"
+    >
+      <span class="material-symbols-outlined">quiz</span>
+      {{ lang.translate('faqAdmin.title') }}
+    </button>
+    <button
+      type="button"
+      class="faq-admin__tab"
+      [class.faq-admin__tab--active]="activeTab() === 'categories'"
+      (click)="setActiveTab('categories')"
+    >
+      <span class="material-symbols-outlined">category</span>
+      {{ lang.translate('faqAdmin.categoriesTab') }}
+    </button>
+    @if (showErrorSolutionsTab()) {
+      <button
+        type="button"
+        class="faq-admin__tab"
+        [class.faq-admin__tab--active]="activeTab() === 'errorSolutions'"
+        (click)="setActiveTab('errorSolutions')"
+      >
+        <span class="material-symbols-outlined">build</span>
+        {{ lang.translate('errorSolutionsAdmin.title') }}
+      </button>
+    }
+  </div>
+
+  @if (activeTab() === 'faq') {
+    <div class="card faq-admin__card">
+      @if (addError()) {
+        <p class="error-text">{{ addError() }}</p>
+      }
+
+      <div class="faq-admin__form">
+        <input
+          class="faq-admin__input"
+          type="text"
+          [placeholder]="lang.translate('faqAdmin.questionPlaceholder')"
+          [ngModel]="newQuestion()"
+          (ngModelChange)="newQuestion.set($event)"
+        />
+        <textarea
+          class="faq-admin__textarea"
+          rows="2"
+          [placeholder]="lang.translate('faqAdmin.answerPlaceholder')"
+          [ngModel]="newAnswer()"
+          (ngModelChange)="newAnswer.set($event)"
+        ></textarea>
+        <input
+          class="faq-admin__input"
+          type="text"
+          dir="rtl"
+          [placeholder]="lang.translate('faqAdmin.questionPlaceholderAr')"
+          [ngModel]="newQuestionAr()"
+          (ngModelChange)="newQuestionAr.set($event)"
+        />
+        <textarea
+          class="faq-admin__textarea"
+          rows="2"
+          dir="rtl"
+          [placeholder]="lang.translate('faqAdmin.answerPlaceholderAr')"
+          [ngModel]="newAnswerAr()"
+          (ngModelChange)="newAnswerAr.set($event)"
+        ></textarea>
+        <p class="faq-admin__hint">{{ lang.translate('faqAdmin.bilingualHint') }}</p>
+        <select
+          class="faq-admin__input"
+          [ngModel]="newCategoryId()"
+          (ngModelChange)="newCategoryId.set($event)"
+        >
+          <option value="">{{ lang.translate('faqAdmin.uncategorizedOption') }}</option>
+          @for (category of categories(); track category.id) {
+            <option [value]="category.id">{{ categoryName(category.id) }}</option>
+          }
+        </select>
+        <button
+          type="button"
+          class="btn btn-primary faq-admin__add-btn"
+          [disabled]="isAdding() || (!newQuestion().trim() && !newQuestionAr().trim()) || (!newAnswer().trim() && !newAnswerAr().trim())"
+          (click)="addFaq()"
+        >
+          <span class="material-symbols-outlined">add</span>
+          {{ isAdding() ? lang.translate('faqAdmin.adding') : lang.translate('faqAdmin.add') }}
+        </button>
+      </div>
+
+      <button
+        type="button"
+        class="faq-admin__uncategorized-toggle"
+        [class.faq-admin__uncategorized-toggle--active]="uncategorizedOnly()"
+        (click)="toggleUncategorizedOnly()"
+      >
+        <span class="material-symbols-outlined">label_off</span>
+        {{ lang.translate('faqAdmin.uncategorizedFilter') }}
+        @if (uncategorizedCount() > 0) {
+          <span class="faq-admin__badge faq-admin__badge--count">{{ uncategorizedCount() }}</span>
+        }
+      </button>
+
+      @if (loadError()) {
+        <p class="error-text">{{ loadError() }}</p>
+      }
+      @if (deleteError()) {
+        <p class="error-text">{{ deleteError() }}</p>
+      }
+      @if (editError()) {
+        <p class="error-text">{{ editError() }}</p>
+      }
+
+      @if (isLoading()) {
+        <div class="faq-admin__loading">
+          <span class="faq-admin__spinner"></span>
+          {{ lang.translate('common.loading') }}
+        </div>
+      } @else if (items().length === 0) {
+        <p class="faq-admin__empty">{{ lang.translate('faqAdmin.noFaqs') }}</p>
+      } @else {
+        <ul class="faq-admin__list">
+          @for (item of pagedItems(); track item.id) {
+            <li class="faq-admin__item" [class.faq-admin__item--top]="editingId() === item.id">
+              @if (editingId() === item.id) {
+                <span class="material-symbols-outlined faq-admin__item-icon">quiz</span>
+                <div class="faq-admin__edit-fields">
+                  <input
+                    class="faq-admin__edit-input"
+                    type="text"
+                    [placeholder]="lang.translate('faqAdmin.questionPlaceholder')"
+                    [ngModel]="editQuestion()"
+                    (ngModelChange)="editQuestion.set($event)"
+                    (keydown.escape)="cancelEdit()"
+                  />
+                  <textarea
+                    class="faq-admin__textarea"
+                    rows="2"
+                    [placeholder]="lang.translate('faqAdmin.answerPlaceholder')"
+                    [ngModel]="editAnswer()"
+                    (ngModelChange)="editAnswer.set($event)"
+                    (keydown.escape)="cancelEdit()"
+                  ></textarea>
+                  <input
+                    class="faq-admin__edit-input"
+                    type="text"
+                    dir="rtl"
+                    [placeholder]="lang.translate('faqAdmin.questionPlaceholderAr')"
+                    [ngModel]="editQuestionAr()"
+                    (ngModelChange)="editQuestionAr.set($event)"
+                    (keydown.escape)="cancelEdit()"
+                  />
+                  <textarea
+                    class="faq-admin__textarea"
+                    rows="2"
+                    dir="rtl"
+                    [placeholder]="lang.translate('faqAdmin.answerPlaceholderAr')"
+                    [ngModel]="editAnswerAr()"
+                    (ngModelChange)="editAnswerAr.set($event)"
+                    (keydown.escape)="cancelEdit()"
+                  ></textarea>
+                  <select
+                    class="faq-admin__input"
+                    [ngModel]="editCategoryId()"
+                    (ngModelChange)="editCategoryId.set($event)"
+                  >
+                    <option value="">{{ lang.translate('faqAdmin.uncategorizedOption') }}</option>
+                    @for (category of categories(); track category.id) {
+                      <option [value]="category.id">{{ categoryName(category.id) }}</option>
+                    }
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn faq-admin__action-btn--confirm"
+                  [title]="lang.translate('faqAdmin.save')"
+                  [disabled]="isSavingEdit() || (!editQuestion().trim() && !editQuestionAr().trim()) || (!editAnswer().trim() && !editAnswerAr().trim())"
+                  (click)="saveEdit(item)"
+                >
+                  <span class="material-symbols-outlined">check</span>
+                </button>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('faqAdmin.cancel')"
+                  [disabled]="isSavingEdit()"
+                  (click)="cancelEdit()"
+                >
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              } @else {
+                <span class="material-symbols-outlined faq-admin__item-icon">quiz</span>
+                <div class="faq-admin__item-body">
+                  <span class="faq-admin__item-question">{{ item.question }}</span>
+                  <span class="faq-admin__item-answer">{{ item.answer }}</span>
+                  @if (categoryName(item.category_id)) {
+                    <span class="faq-admin__badge faq-admin__badge--category">{{ categoryName(item.category_id) }}</span>
+                  } @else {
+                    <span class="faq-admin__badge faq-admin__badge--uncategorized">{{ lang.translate('faqAdmin.uncategorizedOption') }}</span>
+                  }
+                </div>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('faqAdmin.editQuestion')"
+                  (click)="startEdit(item)"
+                >
+                  <span class="material-symbols-outlined">edit</span>
+                </button>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('faqAdmin.deleteQuestion')"
+                  [disabled]="deletingIds().has(item.id)"
+                  (click)="deleteFaq(item)"
+                >
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              }
+            </li>
+          }
+        </ul>
+
+        <app-pagination
+          [page]="page()"
+          [totalPages]="totalPages()"
+          [total]="items().length"
+          (pageChange)="page.set($event)"
+        />
+      }
+    </div>
+  } @else if (activeTab() === 'categories') {
+    <div class="card faq-admin__card">
+      @if (addCategoryError()) {
+        <p class="error-text">{{ addCategoryError() }}</p>
+      }
+
+      <div class="faq-admin__form">
+        <input
+          class="faq-admin__input"
+          type="text"
+          [placeholder]="lang.translate('faqAdmin.categoryNameArPlaceholder')"
+          [ngModel]="newCategoryNameAr()"
+          (ngModelChange)="newCategoryNameAr.set($event)"
+        />
+        <input
+          class="faq-admin__input"
+          type="text"
+          [placeholder]="lang.translate('faqAdmin.categoryNameEnPlaceholder')"
+          [ngModel]="newCategoryNameEn()"
+          (ngModelChange)="newCategoryNameEn.set($event)"
+        />
+        <button
+          type="button"
+          class="btn btn-primary faq-admin__add-btn"
+          [disabled]="isAddingCategory() || !newCategoryNameAr().trim() || !newCategoryNameEn().trim()"
+          (click)="addCategory()"
+        >
+          <span class="material-symbols-outlined">add</span>
+          {{ isAddingCategory() ? lang.translate('faqAdmin.adding') : lang.translate('faqAdmin.addCategory') }}
+        </button>
+      </div>
+
+      @if (categoriesLoadError()) {
+        <p class="error-text">{{ categoriesLoadError() }}</p>
+      }
+      @if (deleteCategoryError()) {
+        <p class="error-text">{{ deleteCategoryError() }}</p>
+      }
+      @if (editCategoryError()) {
+        <p class="error-text">{{ editCategoryError() }}</p>
+      }
+
+      @if (categoriesLoading()) {
+        <div class="faq-admin__loading">
+          <span class="faq-admin__spinner"></span>
+          {{ lang.translate('common.loading') }}
+        </div>
+      } @else if (categories().length === 0) {
+        <p class="faq-admin__empty">{{ lang.translate('faqAdmin.noCategories') }}</p>
+      } @else {
+        <ul class="faq-admin__list">
+          @for (category of categories(); track category.id; let first = $first; let last = $last) {
+            <li class="faq-admin__item" [class.faq-admin__item--top]="editingCategoryId() === category.id">
+              @if (editingCategoryId() === category.id) {
+                <span class="material-symbols-outlined faq-admin__item-icon">category</span>
+                <div class="faq-admin__edit-fields">
+                  <input
+                    class="faq-admin__edit-input"
+                    type="text"
+                    [placeholder]="lang.translate('faqAdmin.categoryNameArPlaceholder')"
+                    [ngModel]="editCategoryNameAr()"
+                    (ngModelChange)="editCategoryNameAr.set($event)"
+                    (keydown.escape)="cancelEditCategory()"
+                  />
+                  <input
+                    class="faq-admin__edit-input"
+                    type="text"
+                    [placeholder]="lang.translate('faqAdmin.categoryNameEnPlaceholder')"
+                    [ngModel]="editCategoryNameEn()"
+                    (ngModelChange)="editCategoryNameEn.set($event)"
+                    (keydown.escape)="cancelEditCategory()"
+                  />
+                  <input
+                    class="faq-admin__edit-input"
+                    type="number"
+                    [placeholder]="lang.translate('faqAdmin.displayOrder')"
+                    [ngModel]="editCategoryDisplayOrder()"
+                    (ngModelChange)="editCategoryDisplayOrder.set($event)"
+                    (keydown.escape)="cancelEditCategory()"
+                  />
+                </div>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn faq-admin__action-btn--confirm"
+                  [title]="lang.translate('faqAdmin.save')"
+                  [disabled]="isSavingCategoryEdit() || !editCategoryNameAr().trim() || !editCategoryNameEn().trim()"
+                  (click)="saveEditCategory(category)"
+                >
+                  <span class="material-symbols-outlined">check</span>
+                </button>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('faqAdmin.cancel')"
+                  [disabled]="isSavingCategoryEdit()"
+                  (click)="cancelEditCategory()"
+                >
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              } @else {
+                <span class="material-symbols-outlined faq-admin__item-icon">category</span>
+                <div class="faq-admin__item-body">
+                  <span class="faq-admin__item-question">{{ category.name_en }} / {{ category.name_ar }}</span>
+                  <span class="faq-admin__item-answer">{{ lang.translate('faqAdmin.displayOrder') }}: {{ category.display_order }}</span>
+                </div>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('faqAdmin.moveUp')"
+                  [disabled]="first"
+                  (click)="moveCategory(category, -1)"
+                >
+                  <span class="material-symbols-outlined">arrow_upward</span>
+                </button>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('faqAdmin.moveDown')"
+                  [disabled]="last"
+                  (click)="moveCategory(category, 1)"
+                >
+                  <span class="material-symbols-outlined">arrow_downward</span>
+                </button>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('faqAdmin.editCategory')"
+                  (click)="startEditCategory(category)"
+                >
+                  <span class="material-symbols-outlined">edit</span>
+                </button>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('faqAdmin.deleteCategory')"
+                  [disabled]="deletingCategoryIds().has(category.id)"
+                  (click)="deleteCategory(category)"
+                >
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  } @else if (activeTab() === 'errorSolutions') {
+    <div class="card faq-admin__card">
+      <div class="faq-admin__import-hd">
+        <span class="material-symbols-outlined">upload_file</span>
+        <strong>{{ lang.translate('errorSolutionsAdmin.importTitle') }}</strong>
+      </div>
+      <p class="faq-admin__subtext">{{ lang.translate('errorSolutionsAdmin.importHint') }}</p>
+
+      @if (esImportError()) {
+        <p class="error-text">{{ esImportError() }}</p>
+      }
+      @if (esImportResultMessage()) {
+        <p class="faq-admin__import-result">{{ esImportResultMessage() }}</p>
+      }
+
+      <div class="faq-admin__import-actions">
+        <label
+          class="btn btn-secondary faq-admin__file-label"
+          [class.faq-admin__file-label--disabled]="esIsImporting()"
+        >
+          <span class="material-symbols-outlined">attach_file</span>
+          {{ esImportFile() ? esImportFile()!.name : lang.translate('errorSolutionsAdmin.chooseFile') }}
+          <input
+            type="file"
+            class="faq-admin__file-input"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            [disabled]="esIsImporting()"
+            (change)="esOnImportFileSelected($event)"
+          />
+        </label>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="!esImportFile() || esIsImporting()"
+          (click)="esImportFromExcel()"
+        >
+          <span class="material-symbols-outlined">upload</span>
+          {{ esIsImporting() ? lang.translate('errorSolutionsAdmin.importing') : lang.translate('errorSolutionsAdmin.import') }}
+        </button>
+      </div>
+    </div>
+
+    <div class="card faq-admin__card">
+      @if (esAddError()) {
+        <p class="error-text">{{ esAddError() }}</p>
+      }
+
+      <div class="faq-admin__form">
+        <input
+          class="faq-admin__input"
+          type="text"
+          [placeholder]="lang.translate('errorSolutionsAdmin.errorPlaceholder')"
+          [ngModel]="esNewErrorText()"
+          (ngModelChange)="esNewErrorText.set($event)"
+        />
+        <textarea
+          class="faq-admin__textarea"
+          rows="2"
+          [placeholder]="lang.translate('errorSolutionsAdmin.solutionPlaceholder')"
+          [ngModel]="esNewSolutionText()"
+          (ngModelChange)="esNewSolutionText.set($event)"
+        ></textarea>
+        <select
+          class="faq-admin__input"
+          [ngModel]="esNewCategoryId()"
+          (ngModelChange)="esNewCategoryId.set($event)"
+        >
+          <option value="">{{ lang.translate('faqAdmin.uncategorizedOption') }}</option>
+          @for (category of categories(); track category.id) {
+            <option [value]="category.id">{{ categoryName(category.id) }}</option>
+          }
+        </select>
+        <button
+          type="button"
+          class="btn btn-primary faq-admin__add-btn"
+          [disabled]="esIsAdding() || !esNewErrorText().trim() || !esNewSolutionText().trim()"
+          (click)="esAddErrorSolution()"
+        >
+          <span class="material-symbols-outlined">add</span>
+          {{ esIsAdding() ? lang.translate('errorSolutionsAdmin.adding') : lang.translate('errorSolutionsAdmin.add') }}
+        </button>
+      </div>
+
+      <button
+        type="button"
+        class="faq-admin__uncategorized-toggle"
+        [class.faq-admin__uncategorized-toggle--active]="esUncategorizedOnly()"
+        (click)="toggleEsUncategorizedOnly()"
+      >
+        <span class="material-symbols-outlined">label_off</span>
+        {{ lang.translate('faqAdmin.uncategorizedFilter') }}
+        @if (esUncategorizedCount() > 0) {
+          <span class="faq-admin__badge faq-admin__badge--count">{{ esUncategorizedCount() }}</span>
+        }
+      </button>
+
+      @if (esLoadError()) {
+        <p class="error-text">{{ esLoadError() }}</p>
+      }
+      @if (esDeleteError()) {
+        <p class="error-text">{{ esDeleteError() }}</p>
+      }
+      @if (esEditError()) {
+        <p class="error-text">{{ esEditError() }}</p>
+      }
+
+      @if (esIsLoading()) {
+        <div class="faq-admin__loading">
+          <span class="faq-admin__spinner"></span>
+          {{ lang.translate('common.loading') }}
+        </div>
+      } @else if (esItems().length === 0) {
+        <p class="faq-admin__empty">{{ lang.translate('errorSolutionsAdmin.noItems') }}</p>
+      } @else {
+        <ul class="faq-admin__list">
+          @for (item of esPagedItems(); track item.id) {
+            <li class="faq-admin__item" [class.faq-admin__item--top]="esEditingId() === item.id">
+              @if (esEditingId() === item.id) {
+                <span class="material-symbols-outlined faq-admin__item-icon">error</span>
+                <div class="faq-admin__edit-fields">
+                  <input
+                    class="faq-admin__edit-input"
+                    type="text"
+                    [placeholder]="lang.translate('errorSolutionsAdmin.errorPlaceholder')"
+                    [ngModel]="esEditErrorText()"
+                    (ngModelChange)="esEditErrorText.set($event)"
+                    (keydown.escape)="esCancelEdit()"
+                  />
+                  <textarea
+                    class="faq-admin__textarea"
+                    rows="2"
+                    [placeholder]="lang.translate('errorSolutionsAdmin.solutionPlaceholder')"
+                    [ngModel]="esEditSolutionText()"
+                    (ngModelChange)="esEditSolutionText.set($event)"
+                    (keydown.escape)="esCancelEdit()"
+                  ></textarea>
+                  <select
+                    class="faq-admin__input"
+                    [ngModel]="esEditCategoryId()"
+                    (ngModelChange)="esEditCategoryId.set($event)"
+                  >
+                    <option value="">{{ lang.translate('faqAdmin.uncategorizedOption') }}</option>
+                    @for (category of categories(); track category.id) {
+                      <option [value]="category.id">{{ categoryName(category.id) }}</option>
+                    }
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn faq-admin__action-btn--confirm"
+                  [title]="lang.translate('errorSolutionsAdmin.save')"
+                  [disabled]="esIsSavingEdit() || !esEditErrorText().trim() || !esEditSolutionText().trim()"
+                  (click)="esSaveEdit(item)"
+                >
+                  <span class="material-symbols-outlined">check</span>
+                </button>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('errorSolutionsAdmin.cancel')"
+                  [disabled]="esIsSavingEdit()"
+                  (click)="esCancelEdit()"
+                >
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              } @else {
+                <span class="material-symbols-outlined faq-admin__item-icon">error</span>
+                <div class="faq-admin__item-body">
+                  <span class="faq-admin__item-question">{{ item.error_text }}</span>
+                  <span class="faq-admin__item-answer">{{ item.solution_text }}</span>
+                  @if (categoryName(item.category_id)) {
+                    <span class="faq-admin__badge faq-admin__badge--category">{{ categoryName(item.category_id) }}</span>
+                  } @else {
+                    <span class="faq-admin__badge faq-admin__badge--uncategorized">{{ lang.translate('faqAdmin.uncategorizedOption') }}</span>
+                  }
+                </div>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('errorSolutionsAdmin.editItem')"
+                  (click)="esStartEdit(item)"
+                >
+                  <span class="material-symbols-outlined">edit</span>
+                </button>
+                <button
+                  type="button"
+                  class="faq-admin__action-btn"
+                  [title]="lang.translate('errorSolutionsAdmin.deleteItem')"
+                  [disabled]="esDeletingIds().has(item.id)"
+                  (click)="esDeleteErrorSolution(item)"
+                >
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              }
+            </li>
+          }
+        </ul>
+
+        <app-pagination
+          [page]="esPage()"
+          [totalPages]="esTotalPages()"
+          [total]="esItems().length"
+          (pageChange)="esPage.set($event)"
+        />
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,27 @@
+<nav class="superadmin-nav">
+  <a
+    class="superadmin-nav__link"
+    routerLink="/superadmin"
+    routerLinkActive="superadmin-nav__link--active"
+    [routerLinkActiveOptions]="{ exact: true }"
+  >
+    <span class="material-symbols-outlined">apartment</span>
+    {{ lang.translate('superadmin.navCompanies') }}
+  </a>
+  <a
+    class="superadmin-nav__link"
+    routerLink="/superadmin/odoo-chat"
+    routerLinkActive="superadmin-nav__link--active"
+  >
+    <span class="material-symbols-outlined">forum</span>
+    {{ lang.translate('superadmin.navOdooChat') }}
+  </a>
+  <a
+    class="superadmin-nav__link"
+    routerLink="/superadmin/ai-monitoring"
+    routerLinkActive="superadmin-nav__link--active"
+  >
+    <span class="material-symbols-outlined">monitoring</span>
+    {{ lang.translate('superadmin.navAiMonitoring') }}
+  </a>
+</nav>

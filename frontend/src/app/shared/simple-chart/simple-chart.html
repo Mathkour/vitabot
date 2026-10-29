@@ -1,0 +1,62 @@
+<div class="simple-chart">
+  <p class="simple-chart__title">{{ data().title }}</p>
+
+  @if (data().chartType === 'bar') {
+    <svg
+      class="simple-chart__svg"
+      [attr.viewBox]="'0 0 ' + barChart().width + ' ' + barChart().height"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <line
+        class="simple-chart__baseline"
+        [attr.x1]="barChart().paddingX"
+        [attr.y1]="barChart().baselineY"
+        [attr.x2]="barChart().paddingX + barChart().plotWidth"
+        [attr.y2]="barChart().baselineY"
+      />
+
+      @for (bar of barChart().bars; track $index) {
+        <rect
+          class="simple-chart__bar"
+          [attr.x]="bar.x"
+          [attr.y]="bar.y"
+          [attr.width]="bar.width"
+          [attr.height]="bar.height"
+          rx="3"
+        />
+        <text class="simple-chart__value-label" [attr.x]="bar.labelX" [attr.y]="bar.valueY">
+          {{ bar.valueLabel }}
+        </text>
+        <text
+          class="simple-chart__category-label"
+          [attr.x]="bar.labelX"
+          [attr.y]="barChart().baselineY + 16"
+        >
+          {{ bar.label }}
+        </text>
+      }
+    </svg>
+  } @else {
+    <div class="simple-chart__pie-row">
+      <svg class="simple-chart__svg simple-chart__svg--pie" viewBox="0 0 180 180" preserveAspectRatio="xMidYMid meet">
+        @if (pieChart().isSingleSlice) {
+          <circle [attr.cx]="pieChart().cx" [attr.cy]="pieChart().cy" [attr.r]="pieChart().r" [style.fill]="pieChart().singleColor" />
+        } @else {
+          @for (slice of pieChart().slices; track $index) {
+            <path [attr.d]="slice.path" [style.fill]="slice.color" />
+          }
+        }
+      </svg>
+
+      <ul class="simple-chart__legend">
+        @for (slice of pieChart().slices; track $index) {
+          <li class="simple-chart__legend-item">
+            <span class="simple-chart__legend-swatch" [style.background]="slice.color"></span>
+            <span class="simple-chart__legend-label">{{ slice.label }}</span>
+            <span class="simple-chart__legend-value">{{ slice.percent }}%</span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</div>

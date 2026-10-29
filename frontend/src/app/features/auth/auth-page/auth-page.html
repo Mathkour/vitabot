@@ -1,0 +1,66 @@
+<div class="auth">
+  <section class="auth__panel">
+    <div class="auth__top-controls">
+      <button class="auth__icon-btn" type="button" (click)="toggleLanguage()">
+        {{ lang.lang() === 'en' ? 'AR' : 'EN' }}
+      </button>
+      <button class="auth__icon-btn" type="button" (click)="toggleTheme()">
+        <span class="material-symbols-outlined">
+          {{ theme.theme() === 'dark' ? 'light_mode' : 'dark_mode' }}
+        </span>
+      </button>
+    </div>
+
+    <div class="auth__card card">
+      <h2 class="auth__title">{{ lang.translate('auth.signIn') }}</h2>
+
+      @if (errorMessage()) {
+        <p class="error-text auth__error">{{ errorMessage() }}</p>
+      }
+
+      <form class="auth__form" [formGroup]="signinForm" (ngSubmit)="submitSignin()">
+        <div class="form-field">
+          <label for="signin-email">{{ lang.translate('auth.email') }}</label>
+          <input
+            id="signin-email"
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="you@company.com"
+          />
+          @if (signinForm.controls.email.invalid && signinForm.controls.email.touched) {
+            <span class="error-text">{{ lang.translate('common.emailRequired') }}</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="signin-password">{{ lang.translate('auth.password') }}</label>
+          <input
+            id="signin-password"
+            type="password"
+            appPasswordToggle
+            formControlName="password"
+            autocomplete="current-password"
+            placeholder="••••••••"
+          />
+          @if (signinForm.controls.password.invalid && signinForm.controls.password.touched) {
+            <span class="error-text">{{ lang.translate('auth.passwordRequired') }}</span>
+          }
+        </div>
+
+        <button type="submit" class="btn btn-primary auth__submit" [disabled]="isLoading()">
+          @if (isLoading()) {
+            <span class="auth__spinner"></span>
+            {{ lang.translate('auth.signingIn') }}
+          } @else {
+            {{ lang.translate('auth.signInCta') }}
+          }
+        </button>
+
+        @if (isSlow()) {
+          <p class="auth__slow-hint">{{ lang.translate('auth.slowLoginHint') }}</p>
+        }
+      </form>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,117 @@
+<div class="tickets-admin">
+  <div class="tickets-admin__header">
+    <h2>{{ lang.translate('supportTicketsAdmin.title') }}</h2>
+    <p class="tickets-admin__subtext">{{ lang.translate('supportTicketsAdmin.subtitle') }}</p>
+  </div>
+
+  <div class="tickets-admin__tabs">
+    <button
+      type="button"
+      class="tickets-admin__tab"
+      [class.tickets-admin__tab--active]="activeTab() === 'pending'"
+      (click)="setActiveTab('pending')"
+    >
+      <span class="material-symbols-outlined">pending</span>
+      {{ lang.translate('supportTicketsAdmin.pendingTab') }}
+    </button>
+    <button
+      type="button"
+      class="tickets-admin__tab"
+      [class.tickets-admin__tab--active]="activeTab() === 'resolved'"
+      (click)="setActiveTab('resolved')"
+    >
+      <span class="material-symbols-outlined">check_circle</span>
+      {{ lang.translate('supportTicketsAdmin.resolvedTab') }}
+    </button>
+  </div>
+
+  <div class="card tickets-admin__card">
+    @if (isLoading()) {
+      <div class="tickets-admin__status">
+        <span class="tickets-admin__spinner"></span>
+        {{ lang.translate('common.loading') }}
+      </div>
+    } @else if (loadError()) {
+      <p class="error-text">{{ loadError() }}</p>
+    } @else if (tickets().length === 0) {
+      <p class="tickets-admin__empty">{{ lang.translate('supportTicketsAdmin.empty') }}</p>
+    } @else {
+      <ul class="tickets-admin__list">
+        @for (ticket of tickets(); track ticket.id) {
+          <li class="tickets-admin__item">
+            <div class="tickets-admin__item-row">
+              <button type="button" class="tickets-admin__item-toggle" (click)="openThread(ticket)">
+                <div class="tickets-admin__item-header">
+                  <span class="tickets-admin__item-user">{{ ticket.username || ticket.email }}</span>
+                  <span class="tickets-admin__item-date">{{ ticket.created_at | date: 'medium' }}</span>
+                </div>
+                <span class="tickets-admin__item-question">{{ ticket.question }}</span>
+                <span class="material-symbols-outlined">
+                  {{ openTicketId() === ticket.id ? 'expand_less' : 'expand_more' }}
+                </span>
+              </button>
+              <button
+                type="button"
+                class="tickets-admin__delete-btn"
+                [disabled]="deletingTicketId() === ticket.id"
+                [title]="lang.translate('supportTicketsAdmin.delete')"
+                (click)="deleteTicket(ticket, $event)"
+              >
+                <span class="material-symbols-outlined">delete</span>
+              </button>
+            </div>
+
+            @if (openTicketId() === ticket.id) {
+              <div class="tickets-admin__thread">
+                @if (isLoadingMessages()) {
+                  <div class="tickets-admin__status">
+                    <span class="tickets-admin__spinner"></span>
+                    {{ lang.translate('common.loading') }}
+                  </div>
+                } @else {
+                  @for (message of messages(); track message.id) {
+                    <div class="tickets-admin__message" [class.tickets-admin__message--admin]="message.sender === 'admin'">
+                      <div class="tickets-admin__message-bubble">{{ message.content }}</div>
+                    </div>
+                  }
+                }
+
+                @if (threadError()) {
+                  <p class="error-text">{{ threadError() }}</p>
+                }
+
+                @if (ticket.status === 'pending') {
+                  <textarea
+                    class="tickets-admin__answer-textarea"
+                    rows="2"
+                    [placeholder]="lang.translate('supportTicketsAdmin.messagePlaceholder')"
+                    [ngModel]="draftMessage()"
+                    (ngModelChange)="draftMessage.set($event)"
+                  ></textarea>
+                  <div class="tickets-admin__item-actions">
+                    <button
+                      type="button"
+                      class="btn btn-secondary"
+                      [disabled]="isResolving()"
+                      (click)="resolveTicket(ticket)"
+                    >
+                      {{ isResolving() ? lang.translate('supportTicketsAdmin.resolving') : lang.translate('supportTicketsAdmin.markResolved') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-primary"
+                      [disabled]="isSendingMessage() || !draftMessage().trim()"
+                      (click)="sendMessage(ticket)"
+                    >
+                      {{ isSendingMessage() ? lang.translate('supportTicketsAdmin.sending') : lang.translate('supportTicketsAdmin.send') }}
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

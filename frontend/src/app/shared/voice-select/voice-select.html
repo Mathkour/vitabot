@@ -1,0 +1,34 @@
+<div class="voice-select" #root>
+  <button
+    type="button"
+    class="voice-select__btn"
+    [class.voice-select__btn--open]="isOpen()"
+    [attr.aria-expanded]="isOpen()"
+    aria-haspopup="listbox"
+    title="TTS voice"
+    (click)="toggle()"
+  >
+    <span class="voice-select__btn-label">{{ value() }}</span>
+    <span class="material-symbols-outlined voice-select__btn-arrow">expand_more</span>
+  </button>
+
+  @if (isOpen()) {
+    <div class="voice-select__panel" role="listbox">
+      @for (v of voices; track v) {
+        <button
+          type="button"
+          class="voice-select__option"
+          [class.voice-select__option--selected]="v === value()"
+          role="option"
+          [attr.aria-selected]="v === value()"
+          (click)="select(v)"
+        >
+          <span>{{ v }}</span>
+          @if (v === value()) {
+            <span class="material-symbols-outlined voice-select__option-check">check</span>
+          }
+        </button>
+      }
+    </div>
+  }
+</div>

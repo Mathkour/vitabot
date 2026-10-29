@@ -1,0 +1,25 @@
+@if (isAdminArea()) {
+  <div class="admin-layout">
+    <app-sidebar [open]="isMobileSidebarOpen()" (linkActivated)="closeMobileSidebar()" />
+
+    @if (isMobileSidebarOpen()) {
+      <div class="admin-layout__backdrop" (click)="closeMobileSidebar()"></div>
+    }
+
+    <div class="admin-layout__main">
+      <app-topbar [showMenuToggle]="true" (menuToggle)="toggleMobileSidebar()" />
+
+      <main class="admin-layout__content">
+        <router-outlet />
+      </main>
+    </div>
+  </div>
+} @else {
+  <div class="client-layout">
+    <app-topbar [showBrand]="true" />
+
+    <main class="client-layout__content">
+      <router-outlet />
+    </main>
+  </div>
+}

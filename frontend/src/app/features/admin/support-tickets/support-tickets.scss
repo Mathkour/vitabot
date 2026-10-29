@@ -1,0 +1,219 @@
+.tickets-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tickets-admin__subtext {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 6px 0 0;
+}
+
+.tickets-admin__tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tickets-admin__tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+
+  .material-symbols-outlined { font-size: 18px; }
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &--active {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+  }
+}
+
+.tickets-admin__card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tickets-admin__status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 16px;
+}
+
+.tickets-admin__spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: tickets-admin-spin 0.7s linear infinite;
+}
+
+@keyframes tickets-admin-spin {
+  to { transform: rotate(360deg); }
+}
+
+.tickets-admin__empty {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  padding: 16px;
+}
+
+.tickets-admin__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tickets-admin__item {
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.tickets-admin__item-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.tickets-admin__item-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 14px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: start;
+  position: relative;
+
+  .material-symbols-outlined {
+    position: absolute;
+    top: 14px;
+    inset-inline-end: 14px;
+    color: var(--color-text-secondary);
+  }
+}
+
+.tickets-admin__delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  border: none;
+  border-inline-start: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+
+  .material-symbols-outlined {
+    font-size: 20px;
+  }
+
+  &:hover:not(:disabled) {
+    color: var(--color-danger, #e5484d);
+    background: var(--color-bg);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.tickets-admin__item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding-inline-end: 24px;
+}
+
+.tickets-admin__item-question {
+  font-size: 14px;
+  font-weight: 600;
+  padding-inline-end: 24px;
+}
+
+.tickets-admin__thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.tickets-admin__message {
+  display: flex;
+
+  &--admin {
+    justify-content: flex-end;
+  }
+
+  &:not(.tickets-admin__message--admin) {
+    justify-content: flex-start;
+  }
+}
+
+.tickets-admin__message-bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  background: var(--color-bg);
+  color: var(--color-text);
+
+  .tickets-admin__message--admin & {
+    background: var(--color-info-bg);
+  }
+}
+
+.tickets-admin__answer-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: var(--color-input);
+  color: var(--color-text);
+  outline: none;
+  resize: vertical;
+
+  &:focus {
+    border-color: var(--color-accent);
+  }
+}
+
+.tickets-admin__item-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

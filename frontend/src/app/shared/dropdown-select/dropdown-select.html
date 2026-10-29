@@ -1,0 +1,35 @@
+<div class="dropdown-select" #root>
+  <button
+    type="button"
+    class="dropdown-select__btn"
+    [class.dropdown-select__btn--open]="isOpen()"
+    [class.dropdown-select__btn--disabled]="disabled()"
+    [disabled]="disabled()"
+    [attr.aria-expanded]="isOpen()"
+    aria-haspopup="listbox"
+    (click)="toggle()"
+  >
+    <span class="dropdown-select__btn-label">{{ selectedLabel() }}</span>
+    <span class="material-symbols-outlined dropdown-select__btn-arrow">expand_more</span>
+  </button>
+
+  @if (isOpen()) {
+    <div class="dropdown-select__panel" role="listbox">
+      @for (opt of options(); track opt.value) {
+        <button
+          type="button"
+          class="dropdown-select__option"
+          [class.dropdown-select__option--selected]="opt.value === value()"
+          role="option"
+          [attr.aria-selected]="opt.value === value()"
+          (click)="select(opt)"
+        >
+          <span>{{ opt.label }}</span>
+          @if (opt.value === value()) {
+            <span class="material-symbols-outlined dropdown-select__option-check">check</span>
+          }
+        </button>
+      }
+    </div>
+  }
+</div>

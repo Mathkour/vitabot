@@ -1,0 +1,16 @@
+@if (dialog.request()) {
+  <div class="confirm-overlay" (click)="cancel()">
+    <div class="confirm-modal" (click)="$event.stopPropagation()">
+      <h3 class="confirm-modal__title">{{ dialog.request()!.title }}</h3>
+      <p class="confirm-modal__message">{{ dialog.request()!.message }}</p>
+      <div class="confirm-modal__actions">
+        <button type="button" class="btn btn-secondary" (click)="cancel()">
+          {{ dialog.request()!.cancelLabel || lang.translate('confirm.cancel') }}
+        </button>
+        <button type="button" class="confirm-modal__delete-btn" (click)="confirm()">
+          {{ dialog.request()!.confirmLabel || lang.translate('confirm.delete') }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

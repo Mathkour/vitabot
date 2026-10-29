@@ -1,0 +1,90 @@
+<div class="convo-detail">
+  <div class="convo-detail__header">
+    <a class="btn btn-secondary convo-detail__back" routerLink="/conversations">
+      <span class="material-symbols-outlined">arrow_back</span>
+      {{ lang.translate('common.back') }}
+    </a>
+
+    @if (data(); as d) {
+      <div class="convo-detail__user-info">
+        <h2>{{ d.user.username || '—' }}</h2>
+        <p class="convo-detail__subtext">{{ d.user.email }}</p>
+      </div>
+    }
+  </div>
+
+  @if (isLoading()) {
+    <div class="convo-detail__loading">
+      <span class="convo-detail__spinner"></span>
+      {{ lang.translate('common.loading') }}
+    </div>
+  } @else if (errorMessage()) {
+    <p class="error-text">{{ errorMessage() }}</p>
+  } @else if (data(); as d) {
+    @if (d.conversations.length === 0) {
+      <div class="card convo-detail__empty">
+        <span class="material-symbols-outlined convo-detail__empty-icon">forum</span>
+        <p>{{ lang.translate('conversations.noConversationsYet') }}</p>
+      </div>
+    } @else {
+      <div class="convo-detail__threads">
+        @for (convo of d.conversations; track convo.conversation_id) {
+          <div class="card convo-detail__thread">
+            <button
+              type="button"
+              class="convo-detail__thread-toggle"
+              (click)="toggle(convo.conversation_id)"
+            >
+              <span class="material-symbols-outlined convo-detail__thread-icon">
+                {{ isExpanded(convo.conversation_id) ? 'expand_less' : 'expand_more' }}
+              </span>
+              <span class="convo-detail__thread-title">
+                {{ lang.translate('conversations.conversationStarted') }} {{ convo.started_at | date: 'medium' }}
+              </span>
+              <span class="pill pill-info convo-detail__thread-count">
+                {{ convo.messages.length }}
+                {{ lang.translate(convo.messages.length === 1 ? 'conversations.messageSingular' : 'conversations.messagePlural') }}
+              </span>
+            </button>
+
+            @if (isExpanded(convo.conversation_id)) {
+              <div class="convo-detail__transcript">
+                @if (convo.messages.length === 0) {
+                  <p class="convo-detail__transcript-empty">
+                    {{ lang.translate('conversations.noMessagesInThread') }}
+                  </p>
+                } @else {
+                  @for (msg of convo.messages; track $index) {
+                    <div
+                      class="convo-detail__row"
+                      [class.convo-detail__row--user]="msg.role === 'user'"
+                    >
+                      <div
+                        class="convo-detail__bubble"
+                        [class.convo-detail__bubble--user]="msg.role === 'user'"
+                        [class.convo-detail__bubble--assistant]="msg.role === 'assistant'"
+                      >
+                        <p class="convo-detail__bubble-text">{{ msg.content }}</p>
+                        <span class="convo-detail__bubble-time">{{ msg.created_at | date: 'short' }}</span>
+                      </div>
+                    </div>
+                  }
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      @if (totalPages() > 1) {
+        <app-pagination
+          [page]="page()"
+          [totalPages]="totalPages()"
+          [total]="total()"
+          [itemLabel]="lang.translate(total() === 1 ? 'conversations.conversationSingular' : 'conversations.conversationPlural')"
+          (pageChange)="goToPage($event)"
+        />
+      }
+    }
+  }
+</div>

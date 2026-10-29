@@ -1,0 +1,75 @@
+<div class="conversations">
+  <div class="conversations__header">
+    <div>
+      <h2>{{ lang.translate('conversations.title') }}</h2>
+      <p class="conversations__subtext">{{ lang.translate('conversations.subtitle') }}</p>
+    </div>
+  </div>
+
+  <div class="conversations__search-row">
+    <span class="material-symbols-outlined conversations__search-icon">search</span>
+    <input
+      type="text"
+      class="conversations__search-input"
+      [placeholder]="lang.translate('users.searchPlaceholder')"
+      [ngModel]="searchTerm()"
+      (ngModelChange)="onSearchChange($event)"
+    />
+  </div>
+
+  <div class="card conversations__table-card">
+    @if (usersLoading()) {
+      <div class="conversations__list-loading">
+        <span class="conversations__spinner"></span>
+        {{ lang.translate('common.loading') }}
+      </div>
+    } @else if (usersError()) {
+      <p class="error-text">{{ usersError() }}</p>
+    } @else if (users().length === 0) {
+      <p class="conversations__list-empty">
+        @if (searchTerm().trim()) {
+          {{ lang.translate('users.noUsersMatch') }} "{{ searchTerm() }}".
+        } @else {
+          {{ lang.translate('conversations.noUsersYet') }}
+        }
+      </p>
+    } @else {
+      <div class="conversations__table-wrap">
+        <table class="conversations__table">
+          <thead>
+            <tr>
+              <th>{{ lang.translate('users.colUsername') }}</th>
+              <th>{{ lang.translate('users.colEmail') }}</th>
+              <th>{{ lang.translate('users.colRole') }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of users(); track user.id) {
+              <tr class="conversations__row" (click)="openConversations(user)">
+                <td>{{ user.username || '—' }}</td>
+                <td class="conversations__table-email">{{ user.email }}</td>
+                <td>
+                  <span class="pill {{ roleBadgeClass(user.role) }}">{{ user.role }}</span>
+                </td>
+                <td class="conversations__row-arrow">
+                  <span class="material-symbols-outlined">chevron_right</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+  @if (!usersLoading() && !usersError() && totalPages() > 1) {
+    <app-pagination
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [total]="total()"
+      [itemLabel]="lang.translate(total() === 1 ? 'users.countSingular' : 'users.countPlural')"
+      (pageChange)="goToPage($event)"
+    />
+  }
+</div>

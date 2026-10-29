@@ -1,0 +1,58 @@
+<div class="videos">
+  <div class="videos__header">
+    <h2>{{ lang.translate('videos.title') }}</h2>
+    <p class="videos__subtext">{{ lang.translate('videos.subtitle') }}</p>
+  </div>
+
+  @if (isLoading()) {
+    <div class="videos__status">
+      <span class="videos__spinner"></span>
+      {{ lang.translate('common.loading') }}
+    </div>
+  } @else if (errorMessage()) {
+    <p class="error-text">{{ errorMessage() }}</p>
+  } @else if (videos().length === 0) {
+    <p class="videos__empty">{{ lang.translate('videos.empty') }}</p>
+  } @else {
+    <input
+      type="text"
+      class="videos__search"
+      [placeholder]="lang.translate('videos.searchPlaceholder')"
+      [ngModel]="searchQuery()"
+      (ngModelChange)="onSearchChange($event)"
+    />
+
+    @if (filteredVideos().length === 0) {
+      <p class="videos__empty">{{ lang.translate('videos.noMatch') }}</p>
+    } @else {
+      @for (group of groupedVideos(); track group.categoryId) {
+        <section class="videos__category">
+          <h3 class="videos__category-title">{{ group.categoryName }}</h3>
+          <div class="videos__grid">
+            @for (video of group.videos; track video.id) {
+              <div class="videos__card">
+                @let embed = embedUrl(video);
+                @if (embed) {
+                  <div class="videos__embed-wrap">
+                    <iframe
+                      class="videos__embed"
+                      [src]="embed"
+                      title="{{ title(video) }}"
+                      frameborder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowfullscreen
+                    ></iframe>
+                  </div>
+                }
+                <h4 class="videos__card-title">{{ title(video) }}</h4>
+                @if (description(video)) {
+                  <p class="videos__card-desc">{{ description(video) }}</p>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
+    }
+  }
+</div>

@@ -1,0 +1,148 @@
+<div class="analytics">
+  <div class="analytics__header">
+    <div>
+      <h2>{{ lang.translate('tenantAnalytics.title') }}</h2>
+      <p class="analytics__subtext">{{ lang.translate('tenantAnalytics.subtitle') }}</p>
+    </div>
+
+    <div class="analytics__range">
+      @for (option of rangeOptions; track option) {
+        <button
+          type="button"
+          class="analytics__range-btn"
+          [class.analytics__range-btn--active]="range() === option"
+          (click)="selectRange(option)"
+        >
+          {{ lang.translate('tenantAnalytics.days') }} {{ option }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="analytics__loading">
+      <span class="analytics__spinner"></span>
+      {{ lang.translate('common.loading') }}
+    </div>
+  } @else if (loadError()) {
+    <p class="error-text">{{ loadError() }}</p>
+  } @else {
+    <div class="card analytics__satisfaction-card">
+      <span class="analytics__card-label">{{ lang.translate('tenantAnalytics.satisfactionRate') }}</span>
+      @if (satisfaction(); as s) {
+        @if (s.total_rated > 0) {
+          <span class="analytics__card-value">{{ s.satisfaction_rate }}%</span>
+          <span class="analytics__satisfaction-breakdown">
+            👍 {{ s.thumbs_up }} &nbsp;·&nbsp; 👎 {{ s.thumbs_down }}
+          </span>
+        } @else {
+          <span class="analytics__card-value analytics__card-value--muted">—</span>
+          <span class="analytics__satisfaction-breakdown">{{ lang.translate('tenantAnalytics.satisfactionNoData') }}</span>
+        }
+      }
+    </div>
+
+    <div class="card analytics__chart-card">
+      <h3 class="analytics__section-title">{{ lang.translate('tenantAnalytics.callVolumeOverTime') }}</h3>
+
+      @if (chart(); as c) {
+        <div class="analytics__chart-legend">
+          <span class="analytics__legend-item">
+            <span class="analytics__legend-swatch analytics__legend-swatch--calls"></span>
+            {{ lang.translate('tenantAnalytics.legendCallVolume') }}
+          </span>
+          <span class="analytics__legend-item">
+            <span class="analytics__legend-swatch analytics__legend-swatch--time"></span>
+            {{ lang.translate('tenantAnalytics.legendAvgResponseTime') }}
+          </span>
+        </div>
+
+        <svg
+          class="analytics__chart-svg"
+          [attr.viewBox]="'0 0 ' + c.width + ' ' + c.height"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <line
+            class="analytics__chart-baseline"
+            [attr.x1]="0"
+            [attr.y1]="c.baselineY"
+            [attr.x2]="c.width"
+            [attr.y2]="c.baselineY"
+          />
+          <path class="analytics__chart-line analytics__chart-line--calls" [attr.d]="c.callsPath" />
+          <path class="analytics__chart-line analytics__chart-line--time" [attr.d]="c.timePath" />
+
+          @for (pt of c.callsPoints; track $index) {
+            <circle class="analytics__chart-dot analytics__chart-dot--calls" [attr.cx]="pt.x" [attr.cy]="pt.y" r="2.5" />
+          }
+          @for (pt of c.timePoints; track $index) {
+            <circle class="analytics__chart-dot analytics__chart-dot--time" [attr.cx]="pt.x" [attr.cy]="pt.y" r="2.5" />
+          }
+
+          @for (label of c.labels; track $index) {
+            <text class="analytics__chart-label" [attr.x]="label.x" [attr.y]="c.height - 6">{{ label.text }}</text>
+          }
+        </svg>
+      } @else {
+        <p class="analytics__chart-empty">{{ lang.translate('tenantAnalytics.noData') }}</p>
+      }
+    </div>
+
+    <div class="card analytics__table-card">
+      <h3 class="analytics__section-title">{{ lang.translate('tenantAnalytics.topQuestions') }}</h3>
+
+      @if (topQuestions().length === 0) {
+        <p class="analytics__list-empty">{{ lang.translate('tenantAnalytics.noTopQuestions') }}</p>
+      } @else {
+        <div class="analytics__table-wrap">
+          <table class="analytics__table">
+            <thead>
+              <tr>
+                <th>{{ lang.translate('tenantAnalytics.colQuestion') }}</th>
+                <th>{{ lang.translate('tenantAnalytics.colCount') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of topQuestions(); track $index) {
+                <tr>
+                  <td class="analytics__question-cell">{{ row.question }}</td>
+                  <td>{{ row.count }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+    <div class="card analytics__table-card">
+      <h3 class="analytics__section-title">{{ lang.translate('tenantAnalytics.weakAnswers') }}</h3>
+      <p class="analytics__hint">{{ lang.translate('tenantAnalytics.weakAnswersHint') }}</p>
+
+      @if (weakAnswers().length === 0) {
+        <p class="analytics__list-empty">{{ lang.translate('tenantAnalytics.noWeakAnswers') }}</p>
+      } @else {
+        <div class="analytics__table-wrap">
+          <table class="analytics__table">
+            <thead>
+              <tr>
+                <th>{{ lang.translate('tenantAnalytics.colQuestion') }}</th>
+                <th>{{ lang.translate('tenantAnalytics.colCount') }}</th>
+                <th>{{ lang.translate('tenantAnalytics.colLastSeen') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of weakAnswers(); track $index) {
+                <tr>
+                  <td class="analytics__question-cell">{{ row.question }}</td>
+                  <td>{{ row.count }}</td>
+                  <td class="analytics__created-cell">{{ formatDate(row.last_seen) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+</div>

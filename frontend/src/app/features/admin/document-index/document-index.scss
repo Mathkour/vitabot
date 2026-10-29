@@ -1,0 +1,246 @@
+.document-index {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px;
+  width: 100%;
+}
+
+.document-index__subtext {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 6px 0 0;
+}
+
+.document-index__search-row {
+  display: flex;
+  gap: 10px;
+}
+
+.document-index__search-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.document-index__search-input {
+  width: 100%;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 14px;
+  padding-block: 11px;
+  padding-inline: 14px 40px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: var(--color-input);
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-info-bg);
+  }
+}
+
+/* Live-search-in-flight indicator, shown inside the field itself since
+   results now appear without any explicit "search" action to signal that
+   one is under way. */
+.document-index__input-spinner {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 14px;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-text-secondary);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: document-index-spin 0.7s linear infinite;
+}
+
+/* ── States ──────────────────────────────────────────────────── */
+
+.document-index__loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 20px;
+}
+
+.document-index__spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: document-index-spin 0.7s linear infinite;
+}
+
+@keyframes document-index-spin {
+  to { transform: rotate(360deg); }
+}
+
+.document-index__empty {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+}
+
+/* ── Results ─────────────────────────────────────────────────── */
+
+.document-index__results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.document-index__result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: start;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1px solid var(--color-border);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-1px);
+  }
+}
+
+.document-index__result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.document-index__result-icon {
+  font-size: 18px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.document-index__result-file {
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.document-index__result-page {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.document-index__result-snippet {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  overflow-wrap: break-word;
+
+  ::ng-deep mark {
+    background: var(--color-info-bg);
+    color: var(--color-accent);
+    font-weight: 700;
+    border-radius: 3px;
+    padding: 0 2px;
+  }
+}
+
+/* ── Modal ───────────────────────────────────────────────────── */
+
+.document-index__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 21, 48, 0.55);
+  padding: 16px;
+  animation: document-index-fade-in 0.15s ease;
+}
+
+@keyframes document-index-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.document-index__modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: document-index-pop-in 0.15s ease;
+}
+
+@keyframes document-index-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.document-index__modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.document-index__modal-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.document-index__modal-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.document-index__modal-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+}
+
+.document-index__modal-body {
+  margin-top: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text);
+}

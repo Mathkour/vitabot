@@ -1,0 +1,203 @@
+.o_cpbot_chat_widget {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.o_cpbot_header {
+    flex: 0 0 auto;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f8f9fa;
+
+    .o_cpbot_header_title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+    }
+}
+
+.o_cpbot_banner {
+    flex: 0 0 auto;
+    margin: 8px 16px 0 16px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+
+    &.o_cpbot_banner_error {
+        background: #fdecea;
+        color: #a61b1b;
+        border: 1px solid #f5c2c0;
+    }
+}
+
+.o_cpbot_empty_state {
+    color: #888;
+    font-size: 13px;
+    text-align: center;
+    padding: 24px 8px;
+}
+
+.o_cpbot_messages {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 200px;
+}
+
+.o_cpbot_message {
+    display: flex;
+    max-width: 80%;
+
+    &.o_cpbot_message_user {
+        align-self: flex-end;
+        justify-content: flex-end;
+
+        .o_cpbot_bubble {
+            background: #714b67;
+            color: #fff;
+        }
+    }
+
+    &.o_cpbot_message_assistant {
+        align-self: flex-start;
+        justify-content: flex-start;
+
+        .o_cpbot_bubble {
+            background: #f1f0ef;
+            color: #333;
+        }
+    }
+}
+
+.o_cpbot_bubble {
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+    unicode-bidi: plaintext;
+}
+
+.o_cpbot_loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #666;
+}
+
+.o_cpbot_spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #ccc;
+    border-top-color: #714b67;
+    border-radius: 50%;
+    display: inline-block;
+    animation: cpbot-spin 0.7s linear infinite;
+}
+
+@keyframes cpbot-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.o_cpbot_chart_table_wrapper {
+    margin-top: 6px;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.o_cpbot_chart_table {
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 200px;
+
+    th, td {
+        border: 1px solid #ddd;
+        padding: 4px 8px;
+        text-align: start;
+    }
+
+    th {
+        background: #f8f9fa;
+        font-weight: 600;
+    }
+}
+
+.o_cpbot_input_row {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid #e0e0e0;
+    background: #fafafa;
+}
+
+.o_cpbot_input {
+    flex: 1 1 auto;
+    resize: none;
+    min-height: 36px;
+    max-height: 120px;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+
+    &:focus {
+        outline: none;
+        border-color: #714b67;
+    }
+
+    &:disabled {
+        background: #f0f0f0;
+        color: #999;
+    }
+}
+
+.o_cpbot_send_button {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background: #714b67;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: #5f3d56;
+    }
+
+    &:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+}
+
+/* RTL support: Odoo adds dir="rtl" on <html> when the user language is RTL
+   (e.g. Arabic). Mirror the message alignment so the "own" side stays on
+   the visual right for RTL users, matching native chat UX. */
+html[dir="rtl"] {
+    .o_cpbot_message.o_cpbot_message_user {
+        align-self: flex-start;
+        justify-content: flex-start;
+    }
+
+    .o_cpbot_message.o_cpbot_message_assistant {
+        align-self: flex-end;
+        justify-content: flex-end;
+    }
+}

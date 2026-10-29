@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_cpbot" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.cpbot.vita.insights</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div class="app_settings_block" data-string="Vita Insights" string="Vita Insights" data-key="cpbot_vita_insights" groups="base.group_system">
+                    <h2>Vita Insights</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="cpbot_api_url" string="Backend API URL"/>
+                                <div class="text-muted">
+                                    Base URL of the Vita Care cpbot backend (e.g. https://your-app.onrender.com)
+                                </div>
+                                <div class="content-group">
+                                    <field name="cpbot_api_url" placeholder="https://your-app.onrender.com" class="o_light_label"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="cpbot_api_token" string="API Token"/>
+                                <div class="text-muted">
+                                    Long-lived Bearer JWT issued for this Vita Care tenant
+                                </div>
+                                <div class="content-group">
+                                    <field name="cpbot_api_token" password="True" class="o_light_label"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

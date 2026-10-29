@@ -1,0 +1,48 @@
+<aside class="sidebar" [class.sidebar--open]="open()">
+  <div class="sidebar__brand" [routerLink]="homeRoute()" (click)="linkActivated.emit()">
+    @if (tenantTheme.logoUrl()) {
+      <img class="sidebar__logo-img" [src]="tenantTheme.logoUrl()" alt="" />
+    } @else {
+      <span class="sidebar__logo">MC</span>
+    }
+    <span class="sidebar__name">{{ tenantTheme.appTitle() }}</span>
+  </div>
+
+  <nav class="sidebar__nav">
+    @for (item of navItems(); track item.route) {
+      <a
+        class="sidebar__link"
+        [routerLink]="item.route"
+        routerLinkActive="sidebar__link--active"
+        (click)="linkActivated.emit()"
+      >
+        <span class="material-symbols-outlined sidebar__icon">{{ item.icon }}</span>
+        <span class="sidebar__label">{{ lang.translate(item.labelKey) }}</span>
+        @if (item.route === '/support-tickets-admin' && pendingTicketsCount() > 0) {
+          <span class="sidebar__badge">{{ pendingTicketsCount() }}</span>
+        }
+      </a>
+    }
+
+    @if (showDocumentIndex()) {
+      <a
+        class="sidebar__link"
+        routerLink="/document-index"
+        routerLinkActive="sidebar__link--active"
+        (click)="linkActivated.emit()"
+      >
+        <span class="material-symbols-outlined sidebar__icon">manage_search</span>
+        <span class="sidebar__label">{{ lang.translate('nav.documentIndex') }}</span>
+      </a>
+      <a
+        class="sidebar__link"
+        routerLink="/ask-ai"
+        routerLinkActive="sidebar__link--active"
+        (click)="linkActivated.emit()"
+      >
+        <span class="material-symbols-outlined sidebar__icon">auto_awesome</span>
+        <span class="sidebar__label">{{ lang.translate('nav.askAi') }}</span>
+      </a>
+    }
+  </nav>
+</aside>

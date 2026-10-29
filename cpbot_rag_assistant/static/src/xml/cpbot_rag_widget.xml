@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="cpbot_rag_assistant.ChatWidget" owl="1">
+        <div class="cpbot_rag_chat_widget">
+            <div class="cpbot_rag_header">
+                <span class="cpbot_rag_header_title">RAG Assistant</span>
+            </div>
+
+            <t t-if="state.configError">
+                <div class="cpbot_rag_banner cpbot_rag_banner_error" role="alert">
+                    <t t-esc="state.configError"/>
+                </div>
+            </t>
+
+            <div class="cpbot_rag_messages" t-ref="messagesContainer">
+                <t t-if="state.configReady and !state.messages.length and !state.configError">
+                    <div class="cpbot_rag_empty_state">
+                        Ask a question in English or Arabic to get started.
+                    </div>
+                </t>
+
+                <t t-foreach="state.messages" t-as="message" t-key="message_index">
+                    <div t-attf-class="cpbot_rag_message cpbot_rag_message_{{message.role}}">
+                        <div class="cpbot_rag_bubble" dir="auto">
+                            <span t-esc="message.content"/>
+
+                            <t t-if="message.media">
+                                <t t-if="message.media.type === 'image'">
+                                    <div class="cpbot_rag_media cpbot_rag_media_image">
+                                        <img t-att-src="message.media.url" t-att-alt="message.media.filename"/>
+                                    </div>
+                                </t>
+                                <t t-else="">
+                                    <div class="cpbot_rag_media cpbot_rag_media_link">
+                                        <a t-att-href="message.media.url" target="_blank" rel="noopener noreferrer">
+                                            <t t-esc="message.media.filename"/>
+                                        </a>
+                                    </div>
+                                </t>
+                            </t>
+                        </div>
+                    </div>
+                </t>
+
+                <t t-if="state.loading">
+                    <div class="cpbot_rag_message cpbot_rag_message_assistant">
+                        <div class="cpbot_rag_bubble cpbot_rag_loading">
+                            <span class="cpbot_rag_spinner" role="status"/>
+                            <span>Thinking…</span>
+                        </div>
+                    </div>
+                </t>
+            </div>
+
+            <t t-if="state.error">
+                <div class="cpbot_rag_banner cpbot_rag_banner_error" role="alert">
+                    <t t-esc="state.error"/>
+                </div>
+            </t>
+
+            <div class="cpbot_rag_input_row">
+                <textarea
+                    class="cpbot_rag_input"
+                    dir="auto"
+                    rows="1"
+                    placeholder="Type your question…"
+                    t-att-disabled="state.loading || !!state.configError"
+                    t-on-input="onInputChange"
+                    t-on-keydown="onInputKeydown"
+                    t-att-value="state.inputText"
+                />
+                <button
+                    type="button"
+                    class="cpbot_rag_send_button"
+                    t-att-disabled="state.loading || !!state.configError || !state.inputText.trim()"
+                    t-on-click="sendMessage"
+                >
+                    Send
+                </button>
+            </div>
+        </div>
+    </t>
+
+</templates>

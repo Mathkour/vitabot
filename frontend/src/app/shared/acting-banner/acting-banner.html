@@ -1,0 +1,11 @@
+@if (adminSession.isActing()) {
+  <div class="acting-banner">
+    <span class="material-symbols-outlined acting-banner__icon">admin_panel_settings</span>
+    <span class="acting-banner__text">
+      {{ lang.translate('actingBanner.label') }} <strong>{{ adminSession.actingTenantName() }}</strong>
+    </span>
+    <button type="button" class="acting-banner__exit" (click)="exit()">
+      {{ lang.translate('actingBanner.exit') }}
+    </button>
+  </div>
+}

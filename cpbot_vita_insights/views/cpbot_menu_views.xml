@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="cpbot_vita_insights_client_action" model="ir.actions.client">
+        <field name="name">Vita Insights</field>
+        <field name="tag">cpbot_vita_insights.chat_widget</field>
+    </record>
+
+    <menuitem id="cpbot_vita_insights_root_menu"
+              name="Vita Insights"
+              action="cpbot_vita_insights_client_action"
+              sequence="60"/>
+</odoo>

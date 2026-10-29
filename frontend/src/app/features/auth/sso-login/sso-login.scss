@@ -1,0 +1,45 @@
+.sso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--color-bg);
+}
+
+.sso__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-card);
+  text-align: center;
+  max-width: 360px;
+}
+
+.sso__message {
+  font-size: 14px;
+  color: var(--color-text);
+  margin: 0;
+
+  &--error {
+    color: var(--color-danger);
+  }
+}
+
+.sso__spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: sso-spin 0.8s linear infinite;
+}
+
+@keyframes sso-spin {
+  to { transform: rotate(360deg); }
+}

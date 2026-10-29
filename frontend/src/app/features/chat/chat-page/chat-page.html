@@ -1,0 +1,389 @@
+<div class="chat">
+  <div class="chat__header">
+    <div class="chat__header-text">
+      <h2>{{ lang.translate('chat.title') }}</h2>
+      <p class="chat__subtext">{{ lang.translate('chat.subtitle') }}</p>
+    </div>
+    <button type="button" class="chat__history-btn" (click)="openHistory()">
+      <span class="material-symbols-outlined">history</span>
+      {{ lang.translate('chat.history') }}
+    </button>
+  </div>
+
+  @if (categories().length > 0 && showEmptyState()) {
+    <div class="chat__categories">
+      <button
+        type="button"
+        class="chat__category-pill"
+        [class.chat__category-pill--active]="!selectedCategory()"
+        (click)="selectCategory(null)"
+      >
+        <span class="material-symbols-outlined">apps</span>
+        {{ lang.translate('chat.allTopics') }}
+      </button>
+
+      @for (cat of categories(); track cat.id) {
+        <button
+          type="button"
+          class="chat__category-pill"
+          [class.chat__category-pill--active]="selectedCategoryId() === cat.id"
+          (click)="selectCategory(cat)"
+        >
+          {{ cat.name }}
+        </button>
+      }
+    </div>
+  }
+
+  <div class="chat__messages" #scrollContainer>
+    @if (showEmptyState()) {
+      <div class="chat__empty">
+        <span class="material-symbols-outlined chat__empty-icon">forum</span>
+        <p>
+          {{ selectedCategory()
+            ? lang.translate('chat.emptyPromptScoped') + ' ' + selectedCategory()!.name + '.'
+            : lang.translate('chat.emptyPrompt') }}
+        </p>
+
+        @if (selectedCategory()) {
+          <div class="chat__suggestions">
+            @if (suggestedQuestionsLoading()) {
+              <p class="chat__suggestions-status">{{ lang.translate('chat.loadingQuestions') }}</p>
+            } @else if (suggestedQuestionsError()) {
+              <p class="error-text">{{ suggestedQuestionsError() }}</p>
+            } @else if (suggestedQuestions().length === 0) {
+              <p class="chat__suggestions-status">{{ lang.translate('chat.noSuggestedQuestions') }}</p>
+            } @else {
+              <p class="chat__suggestions-label">{{ lang.translate('chat.guideTitle') }}</p>
+              <div class="chat__suggestions-list">
+                @for (q of suggestedQuestions(); track q.id) {
+                  <button type="button" class="chat__suggestion-chip" (click)="selectSuggestedQuestion(q)">
+                    {{ displayQuestion(q) }}
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    @for (message of messages(); track message.id) {
+      <div class="chat__row" [class.chat__row--user]="message.role === 'user'">
+        <div class="chat__message-group" [class.chat__message-group--user]="message.role === 'user'">
+        <div
+          class="chat__bubble"
+          [class.chat__bubble--user]="message.role === 'user'"
+          [class.chat__bubble--bot]="message.role === 'bot'"
+        >
+          <p class="chat__bubble-text">{{ message.text }}</p>
+
+          @if (message.role === 'bot' && message.media?.type === 'link') {
+            <div class="chat__media">
+              @if (message.youtubeEmbedUrl) {
+                <iframe
+                  class="chat__media-youtube"
+                  [src]="message.youtubeEmbedUrl"
+                  title="video"
+                  frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowfullscreen
+                ></iframe>
+              } @else {
+                <a
+                  class="chat__media-link"
+                  [href]="message.media!.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span class="chat__media-link-icon">📺</span>
+                  {{ lang.translate('chat.watchVideo') }}
+                </a>
+              }
+            </div>
+          } @else if (message.role === 'bot' && message.media && message.mediaSafeUrl) {
+            <div class="chat__media">
+              @if (message.media.type === 'video') {
+                <video
+                  class="chat__media-video"
+                  controls
+                  [src]="message.mediaSafeUrl"
+                ></video>
+              } @else {
+                <img
+                  class="chat__media-img"
+                  [src]="message.mediaSafeUrl"
+                  [alt]="message.media | displayName: lang.lang()"
+                />
+              }
+            </div>
+          }
+
+          @if (message.role === 'bot' && (message.messageId || message.speechObjectUrl)) {
+            <div class="chat__rating">
+              @if (message.speechObjectUrl) {
+                <button
+                  type="button"
+                  class="chat__replay-btn"
+                  [title]="lang.translate('chat.replayAudio')"
+                  (click)="replayAudio(message.speechObjectUrl)"
+                >
+                  <span class="material-symbols-outlined">volume_up</span>
+                </button>
+              }
+
+              @if (message.messageId) {
+                <button
+                  type="button"
+                  class="chat__rating-btn"
+                  [class.chat__rating-btn--active]="message.rating === 1"
+                  [disabled]="message.rating === 1"
+                  [title]="lang.translate('chat.like')"
+                  (click)="rate(message, 1)"
+                >
+                  <span class="material-symbols-outlined">thumb_up</span>
+                </button>
+                <button
+                  type="button"
+                  class="chat__rating-btn"
+                  [class.chat__rating-btn--active]="message.rating === -1"
+                  [disabled]="message.rating === -1"
+                  [title]="lang.translate('chat.dislike')"
+                  (click)="rate(message, -1)"
+                >
+                  <span class="material-symbols-outlined">thumb_down</span>
+                </button>
+
+                @if (message.rating) {
+                  <span class="chat__rating-thanks">{{ lang.translate('chat.thanksFeedback') }}</span>
+                }
+              }
+            </div>
+          }
+        </div>
+
+        @if (message.role === 'bot' && message.slideSource) {
+          <span class="chat__slide-badge">
+            📍
+            {{ lang.translate(message.slideSource.slide_numbers.length > 1 ? 'chat.slidesLabel' : 'chat.slideLabel') }}
+            {{ message.slideSource.slide_range }}
+          </span>
+        }
+
+        @if (message.role === 'bot' && message.offerSupport) {
+          <button type="button" class="chat__support-offer" (click)="openSupportTicket(message)">
+            <span class="material-symbols-outlined">support_agent</span>
+            {{ lang.translate('chat.contactSupport') }}
+          </button>
+        }
+        </div>
+      </div>
+    }
+
+    @if (isLoading()) {
+      <div class="chat__row">
+        <div class="chat__message-group">
+          <div class="chat__bubble chat__bubble--bot chat__bubble--typing">
+            <span class="chat__typing-dot"></span>
+            <span class="chat__typing-dot"></span>
+            <span class="chat__typing-dot"></span>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  @if (errorMessage()) {
+    <p class="error-text chat__error">{{ errorMessage() }}</p>
+  }
+
+  @if (voiceStatus() === 'thinking' || voiceStatus() === 'speaking') {
+    <div class="chat__voice-status">
+      <span
+        class="material-symbols-outlined chat__voice-status-icon"
+        [class.chat__voice-status-icon--spin]="voiceStatus() === 'thinking'"
+      >{{ voiceStatusIcon() }}</span>
+      {{ voiceStatusLabel() }}
+      @if (voiceStatus() === 'speaking') {
+        <button type="button" class="chat__stop-btn" [title]="lang.translate('chat.stopAudio')" (click)="stopAudio()">
+          <span class="material-symbols-outlined">stop_circle</span>
+          {{ lang.translate('chat.stop') }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (voiceStatus() === 'listening') {
+    <div class="chat__input-row">
+      <div class="chat__recording-bar">
+        <span class="chat__recording-dot"></span>
+        <span class="chat__recording-time">{{ recordingTime() }}</span>
+        <span class="chat__recording-hint">{{ lang.translate('chat.recording') }}</span>
+      </div>
+
+      <button
+        type="button"
+        class="chat__recording-action chat__recording-action--cancel"
+        [title]="lang.translate('chat.cancelRecording')"
+        (click)="cancelRecording()"
+      >
+        <span class="material-symbols-outlined">delete</span>
+      </button>
+
+      <button
+        type="button"
+        class="chat__recording-action chat__recording-action--send"
+        [title]="lang.translate('chat.sendRecording')"
+        (click)="sendRecording()"
+      >
+        <span class="material-symbols-outlined">send</span>
+      </button>
+    </div>
+  } @else {
+    <form class="chat__input-row" (ngSubmit)="send()">
+      <textarea
+        #messageInput
+        class="chat__input"
+        rows="1"
+        [placeholder]="lang.translate('chat.inputPlaceholder')"
+        [ngModel]="draft()"
+        (ngModelChange)="draft.set($event)"
+        (input)="autoResizeTextarea($event.target)"
+        (keydown)="onKeydown($event)"
+        name="message"
+        [disabled]="isLoading()"
+      ></textarea>
+
+      <button
+        type="button"
+        class="chat__mic-btn"
+        [disabled]="voiceStatus() === 'thinking' || voiceStatus() === 'speaking'"
+        [title]="lang.translate('chat.startVoiceInput')"
+        (click)="toggleVoice()"
+      >
+        <span class="material-symbols-outlined">mic</span>
+      </button>
+
+      <button
+        type="submit"
+        class="btn btn-primary chat__send"
+        [disabled]="isLoading() || !draft().trim()"
+      >
+        <span class="material-symbols-outlined">send</span>
+        {{ lang.translate('chat.send') }}
+      </button>
+    </form>
+  }
+</div>
+
+@if (isHistoryOpen()) {
+  <div class="chat__history-overlay" (click)="closeHistory()">
+    <div class="card chat__history-panel" (click)="$event.stopPropagation()">
+      <div class="chat__history-panel-header">
+        <h3>{{ lang.translate('chat.historyTitle') }}</h3>
+        <button type="button" class="chat__history-close" (click)="closeHistory()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      @if (historyLoading()) {
+        <div class="chat__history-status">
+          <span class="chat__spinner"></span>
+          {{ lang.translate('common.loading') }}
+        </div>
+      } @else if (historyError()) {
+        <p class="error-text">{{ historyError() }}</p>
+      } @else if (historyConversations().length === 0) {
+        <p class="chat__history-empty">{{ lang.translate('chat.noHistory') }}</p>
+      } @else {
+        <div class="chat__history-list">
+          @for (convo of historyConversations(); track convo.conversation_id) {
+            <div class="chat__history-item">
+              <button
+                type="button"
+                class="chat__history-item-toggle"
+                (click)="toggleHistoryConversation(convo.conversation_id)"
+              >
+                <span class="material-symbols-outlined">
+                  {{ expandedHistoryIds().has(convo.conversation_id) ? 'expand_less' : 'expand_more' }}
+                </span>
+                <span class="chat__history-item-title">{{ convo.started_at | date: 'medium' }}</span>
+                <span class="pill pill-info">{{ convo.messages.length }}</span>
+              </button>
+
+              @if (expandedHistoryIds().has(convo.conversation_id)) {
+                <div class="chat__history-transcript">
+                  @for (msg of convo.messages; track $index) {
+                    <div class="chat__history-row" [class.chat__history-row--user]="msg.role === 'user'">
+                      <div
+                        class="chat__history-bubble"
+                        [class.chat__history-bubble--user]="msg.role === 'user'"
+                      >
+                        {{ msg.content }}
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@if (isSupportTicketOpen()) {
+  <div class="chat__history-overlay" (click)="closeSupportTicket()">
+    <div class="card chat__history-panel" (click)="$event.stopPropagation()">
+      <div class="chat__history-panel-header">
+        <h3>{{ lang.translate('supportTicket.title') }}</h3>
+        <button type="button" class="chat__history-close" (click)="closeSupportTicket()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      @if (supportTicketSubmitted()) {
+        <p class="chat__history-empty">{{ lang.translate('supportTicket.submitted') }}</p>
+        <div class="chat__support-actions">
+          <button type="button" class="btn btn-primary" (click)="closeSupportTicket()">
+            {{ lang.translate('common.close') }}
+          </button>
+        </div>
+      } @else {
+        <p class="chat__subtext">{{ lang.translate('supportTicket.subtitle') }}</p>
+
+        @if (supportTicketError()) {
+          <p class="error-text">{{ supportTicketError() }}</p>
+        }
+
+        <textarea
+          class="chat__support-textarea"
+          rows="4"
+          [placeholder]="lang.translate('supportTicket.questionPlaceholder')"
+          [ngModel]="supportTicketQuestion()"
+          (ngModelChange)="supportTicketQuestion.set($event)"
+        ></textarea>
+
+        <div class="chat__support-actions">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            [disabled]="isSubmittingSupportTicket()"
+            (click)="closeSupportTicket()"
+          >
+            {{ lang.translate('common.cancel') }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="isSubmittingSupportTicket() || !supportTicketQuestion().trim()"
+            (click)="submitSupportTicket()"
+          >
+            {{ isSubmittingSupportTicket() ? lang.translate('supportTicket.submitting') : lang.translate('supportTicket.submit') }}
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

@@ -1,0 +1,132 @@
+<div class="ai-monitoring">
+  <app-superadmin-nav />
+
+  <div class="ai-monitoring__header">
+    <div>
+      <h2>{{ lang.translate('aiMonitoring.title') }}</h2>
+      <p class="ai-monitoring__subtext">{{ lang.translate('aiMonitoring.subtitle') }}</p>
+    </div>
+
+    <div class="ai-monitoring__range">
+      @for (option of rangeOptions; track option) {
+        <button
+          type="button"
+          class="ai-monitoring__range-btn"
+          [class.ai-monitoring__range-btn--active]="range() === option"
+          (click)="selectRange(option)"
+        >
+          @if (option === 'today') {
+            {{ lang.translate('aiMonitoring.today') }}
+          } @else {
+            {{ lang.translate('aiMonitoring.days') }} {{ option }}
+          }
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="ai-monitoring__loading">
+      <span class="ai-monitoring__spinner"></span>
+      {{ lang.translate('common.loading') }}
+    </div>
+  } @else if (loadError()) {
+    <p class="error-text">{{ loadError() }}</p>
+  } @else {
+    <div class="ai-monitoring__cards">
+      <div class="card ai-monitoring__card">
+        <span class="ai-monitoring__card-label">{{ lang.translate('aiMonitoring.totalCalls') }}</span>
+        <span class="ai-monitoring__card-value">{{ summary()?.total_calls ?? 0 }}</span>
+      </div>
+      <div class="card ai-monitoring__card">
+        <span class="ai-monitoring__card-label">{{ lang.translate('aiMonitoring.successRate') }}</span>
+        <span class="ai-monitoring__card-value">{{ summary()?.success_rate ?? 0 }}%</span>
+      </div>
+      <div class="card ai-monitoring__card">
+        <span class="ai-monitoring__card-label">{{ lang.translate('aiMonitoring.avgResponseTime') }}</span>
+        <span class="ai-monitoring__card-value">{{ summary()?.avg_response_time_ms ?? 0 }} ms</span>
+      </div>
+      <div class="card ai-monitoring__card ai-monitoring__card--danger">
+        <span class="ai-monitoring__card-label">{{ lang.translate('aiMonitoring.errorCount') }}</span>
+        <span class="ai-monitoring__card-value">{{ summary()?.error_count ?? 0 }}</span>
+      </div>
+    </div>
+
+    <div class="card ai-monitoring__chart-card">
+      <h3 class="ai-monitoring__section-title">{{ lang.translate('aiMonitoring.callVolumeOverTime') }}</h3>
+
+      @if (chart(); as c) {
+        <div class="ai-monitoring__chart-legend">
+          <span class="ai-monitoring__legend-item">
+            <span class="ai-monitoring__legend-swatch ai-monitoring__legend-swatch--calls"></span>
+            {{ lang.translate('aiMonitoring.legendCallVolume') }}
+          </span>
+          <span class="ai-monitoring__legend-item">
+            <span class="ai-monitoring__legend-swatch ai-monitoring__legend-swatch--time"></span>
+            {{ lang.translate('aiMonitoring.legendAvgResponseTime') }}
+          </span>
+        </div>
+
+        <svg
+          class="ai-monitoring__chart-svg"
+          [attr.viewBox]="'0 0 ' + c.width + ' ' + c.height"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <line
+            class="ai-monitoring__chart-baseline"
+            [attr.x1]="0"
+            [attr.y1]="c.baselineY"
+            [attr.x2]="c.width"
+            [attr.y2]="c.baselineY"
+          />
+          <path class="ai-monitoring__chart-line ai-monitoring__chart-line--calls" [attr.d]="c.callsPath" />
+          <path class="ai-monitoring__chart-line ai-monitoring__chart-line--time" [attr.d]="c.timePath" />
+
+          @for (pt of c.callsPoints; track $index) {
+            <circle class="ai-monitoring__chart-dot ai-monitoring__chart-dot--calls" [attr.cx]="pt.x" [attr.cy]="pt.y" r="2.5" />
+          }
+          @for (pt of c.timePoints; track $index) {
+            <circle class="ai-monitoring__chart-dot ai-monitoring__chart-dot--time" [attr.cx]="pt.x" [attr.cy]="pt.y" r="2.5" />
+          }
+
+          @for (label of c.labels; track $index) {
+            <text class="ai-monitoring__chart-label" [attr.x]="label.x" [attr.y]="c.height - 6">{{ label.text }}</text>
+          }
+        </svg>
+      } @else {
+        <p class="ai-monitoring__chart-empty">{{ lang.translate('aiMonitoring.noData') }}</p>
+      }
+    </div>
+
+    <div class="card ai-monitoring__table-card">
+      <h3 class="ai-monitoring__section-title">{{ lang.translate('aiMonitoring.recentErrors') }}</h3>
+
+      @if (errors().length === 0) {
+        <p class="ai-monitoring__list-empty">{{ lang.translate('aiMonitoring.noErrors') }}</p>
+      } @else {
+        <div class="ai-monitoring__table-wrap">
+          <table class="ai-monitoring__table">
+            <thead>
+              <tr>
+                <th>{{ lang.translate('aiMonitoring.colEndpoint') }}</th>
+                <th>{{ lang.translate('aiMonitoring.colModel') }}</th>
+                <th>{{ lang.translate('aiMonitoring.colError') }}</th>
+                <th>{{ lang.translate('aiMonitoring.colTimestamp') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of errors(); track row.id) {
+                <tr>
+                  <td>{{ row.endpoint }}</td>
+                  <td>{{ row.model_used }}</td>
+                  <td class="ai-monitoring__error-cell">{{ row.error_message || '—' }}</td>
+                  <td class="ai-monitoring__created-cell">{{ formatDate(row.created_at) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+</div>

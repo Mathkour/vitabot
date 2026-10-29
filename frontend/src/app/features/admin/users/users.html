@@ -1,0 +1,348 @@
+<div class="users">
+  <div class="users__header">
+    <div>
+      <h2>{{ lang.translate('users.title') }}</h2>
+      <p class="users__subtext">{{ lang.translate('users.subtitle') }}</p>
+    </div>
+    <div class="users__header-actions">
+      <label class="btn btn-secondary users__import-btn">
+        <span class="material-symbols-outlined">upload_file</span>
+        {{ lang.translate('users.importExcel') }}
+        <input
+          type="file"
+          class="users__import-input"
+          accept=".xlsx"
+          (change)="onImportFileSelected($event)"
+        />
+      </label>
+      <button type="button" class="btn btn-primary users__add-btn" (click)="openModal()">
+        <span class="material-symbols-outlined">person_add</span>
+        {{ lang.translate('users.addUser') }}
+      </button>
+    </div>
+  </div>
+
+  @if (importResultMessage()) {
+    <p class="users__import-result pill pill-success">
+      <span class="material-symbols-outlined users__pill-icon">check_circle</span>
+      {{ importResultMessage() }}
+    </p>
+  }
+
+  <div class="users__search-row">
+    <span class="material-symbols-outlined users__search-icon">search</span>
+    <input
+      type="text"
+      class="users__search-input"
+      [placeholder]="lang.translate('users.searchPlaceholder')"
+      [ngModel]="searchTerm()"
+      (ngModelChange)="onSearchChange($event)"
+    />
+
+    @if (isTenantAdmin() && companies().length > 0) {
+      <select
+        class="users__company-filter"
+        [ngModel]="companyFilter()"
+        (ngModelChange)="onCompanyFilterChange($event)"
+      >
+        <option value="">{{ lang.translate('users.allCompanies') }}</option>
+        @for (company of companies(); track company.id) {
+          <option [value]="company.id">{{ company.name }}</option>
+        }
+      </select>
+    }
+  </div>
+
+  <div class="card users__list-card">
+    @if (usersLoading()) {
+      <div class="users__list-loading">
+        <span class="users__spinner"></span>
+        {{ lang.translate('common.loading') }}
+      </div>
+    } @else if (usersListError()) {
+      <p class="error-text">{{ usersListError() }}</p>
+    } @else if (users().length === 0) {
+      <p class="users__list-empty">
+        @if (searchTerm().trim()) {
+          {{ lang.translate('users.noUsersMatch') }} "{{ searchTerm() }}".
+        } @else {
+          {{ lang.translate('users.noUsersYet') }}
+        }
+      </p>
+    } @else {
+      <div class="users__table-wrap">
+        <table class="users__table">
+          <thead>
+            <tr>
+              <th>{{ lang.translate('users.colUsername') }}</th>
+              <th>{{ lang.translate('users.colEmail') }}</th>
+              <th>{{ lang.translate('users.colRole') }}</th>
+              @if (companies().length > 0) {
+                <th>{{ lang.translate('users.colCompany') }}</th>
+              }
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of users(); track user.id) {
+              <tr>
+                <td>{{ user.username || '—' }}</td>
+                <td class="users__table-email">{{ user.email }}</td>
+                <td><span class="pill {{ roleBadgeClass(user.role) }}">{{ user.role }}</span></td>
+                @if (companies().length > 0) {
+                  <td>
+                    @if (isTenantAdmin() && editingCompanyUserId() === user.id) {
+                      <div class="users__company-edit">
+                        <app-dropdown-select
+                          class="users__company-edit-select"
+                          [options]="companyDropdownOptions()"
+                          [value]="editingCompanyId()"
+                          [disabled]="isSavingCompany()"
+                          (valueChange)="editingCompanyId.set($event)"
+                        />
+                        <button type="button" class="users__action-btn" (click)="saveEditCompany(user)" [disabled]="isSavingCompany()">
+                          <span class="material-symbols-outlined">check</span>
+                        </button>
+                        <button type="button" class="users__action-btn" (click)="cancelEditCompany()" [disabled]="isSavingCompany()">
+                          <span class="material-symbols-outlined">close</span>
+                        </button>
+                      </div>
+                    } @else if (isTenantAdmin()) {
+                      <button type="button" class="users__company-cell-btn" (click)="startEditCompany(user)">
+                        {{ user.company_name || lang.translate('users.noCompany') }}
+                        <span class="material-symbols-outlined">edit</span>
+                      </button>
+                    } @else {
+                      {{ user.company_name || '—' }}
+                    }
+                  </td>
+                }
+                <td class="users__table-actions">
+                  <button
+                    type="button"
+                    class="users__delete-btn"
+                    [title]="lang.translate('common.delete')"
+                    (click)="deleteUser(user)"
+                  >
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+
+  @if (!usersLoading() && !usersListError() && totalPages() > 1) {
+    <app-pagination
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [total]="total()"
+      [itemLabel]="lang.translate(total() === 1 ? 'users.countSingular' : 'users.countPlural')"
+      (pageChange)="goToPage($event)"
+    />
+  }
+</div>
+
+@if (isModalOpen()) {
+  <div class="users__overlay" (click)="closeModal()">
+    <div class="card users__modal" (click)="$event.stopPropagation()">
+      <h3 class="users__modal-title">{{ lang.translate('users.modalTitle') }}</h3>
+      <p class="users__subtext">{{ lang.translate('users.modalSubtitle') }}</p>
+
+      @if (errorMessage()) {
+        <p class="error-text users__error">{{ errorMessage() }}</p>
+      }
+
+      <form class="users__form" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="form-field">
+          <label for="user-email">{{ lang.translate('common.email') }}</label>
+          <input
+            id="user-email"
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="employee@company.com"
+          />
+          @if (form.controls.email.invalid && form.controls.email.touched) {
+            <span class="error-text">{{ lang.translate('common.emailRequired') }}</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="user-username">{{ lang.translate('common.username') }}</label>
+          <input
+            id="user-username"
+            type="text"
+            formControlName="username"
+            autocomplete="off"
+            placeholder="Display name"
+          />
+          @if (form.controls.username.invalid && form.controls.username.touched) {
+            <span class="error-text">{{ lang.translate('common.usernameRequired') }}</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="user-password">{{ lang.translate('common.password') }}</label>
+          <input
+            id="user-password"
+            type="password"
+            appPasswordToggle
+            formControlName="password"
+            autocomplete="new-password"
+            [placeholder]="lang.translate('users.passwordPlaceholder')"
+          />
+          @if (form.controls.password.invalid && form.controls.password.touched) {
+            <span class="error-text">{{ lang.translate('common.passwordRequired') }}</span>
+          }
+        </div>
+
+        @if (isTenantAdmin()) {
+          <div class="form-field">
+            <label for="user-role">{{ lang.translate('common.role') }}</label>
+            <select id="user-role" formControlName="role">
+              <option value="member">{{ lang.translate('users.roleMember') }}</option>
+              <option value="admin">{{ lang.translate('users.roleAdmin') }}</option>
+              @if (companies().length > 0) {
+                <option value="company_admin">{{ lang.translate('users.roleCompanyAdmin') }}</option>
+              }
+            </select>
+          </div>
+
+          @if (companies().length > 0) {
+            <div class="form-field">
+              <label for="user-company">{{ lang.translate('users.colCompany') }}</label>
+              <select id="user-company" formControlName="companyId">
+                <option value="">{{ lang.translate('users.noCompany') }}</option>
+                @for (company of companies(); track company.id) {
+                  <option [value]="company.id">{{ company.name }}</option>
+                }
+              </select>
+            </div>
+          }
+        }
+
+        <div class="users__modal-actions">
+          <button type="button" class="btn btn-secondary" [disabled]="isLoading()" (click)="closeModal()">
+            {{ lang.translate('common.cancel') }}
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="isLoading()">
+            {{ isLoading() ? lang.translate('users.creating') : lang.translate('users.createAccount') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (isImportModalOpen()) {
+  <div class="users__overlay" (click)="closeImportModal()">
+    <div class="card users__modal users__import-modal" (click)="$event.stopPropagation()">
+      <h3 class="users__modal-title">{{ lang.translate('users.importTitle') }}</h3>
+
+      @if (isImportPreviewLoading()) {
+        <div class="users__list-loading">
+          <span class="users__spinner"></span>
+          {{ lang.translate('users.readingFile') }}
+        </div>
+      } @else if (importError() && !importPreviewData()) {
+        <p class="error-text users__error">{{ importError() }}</p>
+        <div class="users__modal-actions">
+          <button type="button" class="btn btn-secondary" (click)="closeImportModal()">
+            {{ lang.translate('common.close') }}
+          </button>
+        </div>
+      } @else if (importPreviewData()) {
+        <p class="users__subtext">
+          {{ importPreviewData()!.total_rows }}
+          {{ lang.translate(importPreviewData()!.total_rows === 1 ? 'users.countSingular' : 'users.countPlural') }}
+          {{ lang.translate('users.willBeImported') }}
+        </p>
+
+        <div class="users__import-mapping">
+          <div class="users__import-mapping-item">
+            <span class="users__import-mapping-label">{{ lang.translate('common.email') }}</span>
+            <span
+              class="pill"
+              [class.pill-success]="importPreviewData()!.mapping.email != null"
+              [class.pill-danger]="importPreviewData()!.mapping.email == null"
+            >
+              {{ mappingLabel(importPreviewData()!.mapping.email, importPreviewData()!.headers) }}
+            </span>
+          </div>
+          <div class="users__import-mapping-item">
+            <span class="users__import-mapping-label">{{ lang.translate('common.username') }}</span>
+            <span
+              class="pill"
+              [class.pill-success]="importPreviewData()!.mapping.username != null"
+              [class.pill-danger]="importPreviewData()!.mapping.username == null"
+            >
+              {{ mappingLabel(importPreviewData()!.mapping.username, importPreviewData()!.headers) }}
+            </span>
+          </div>
+          <div class="users__import-mapping-item">
+            <span class="users__import-mapping-label">{{ lang.translate('common.role') }}</span>
+            <span
+              class="pill"
+              [class.pill-success]="importPreviewData()!.mapping.role != null"
+              [class.pill-danger]="importPreviewData()!.mapping.role == null"
+            >
+              {{ mappingLabel(importPreviewData()!.mapping.role, importPreviewData()!.headers) }}
+            </span>
+          </div>
+        </div>
+
+        @if (!canConfirmImport()) {
+          <p class="error-text users__error">{{ lang.translate('users.mappingRequired') }}</p>
+        }
+
+        @if (importError()) {
+          <p class="error-text users__error">{{ importError() }}</p>
+        }
+
+        <div class="users__table-wrap users__import-preview-wrap">
+          <table class="users__table">
+            <thead>
+              <tr>
+                @for (h of importPreviewData()!.headers; track $index) {
+                  <th>{{ h }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of importPreviewData()!.preview; track $index) {
+                <tr>
+                  @for (cell of row; track $index) {
+                    <td>{{ cell }}</td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="users__modal-actions">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            [disabled]="isConfirmingImport()"
+            (click)="closeImportModal()"
+          >
+            {{ lang.translate('common.cancel') }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="isConfirmingImport() || !canConfirmImport()"
+            (click)="confirmImport()"
+          >
+            {{ isConfirmingImport() ? lang.translate('users.importing') : lang.translate('users.confirmImport') }}
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

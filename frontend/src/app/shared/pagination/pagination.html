@@ -1,0 +1,36 @@
+@if (totalPages() > 1) {
+  <div class="pagination">
+    <button
+      type="button"
+      class="pagination__btn"
+      [disabled]="page() === 1"
+      (click)="goToPage(page() - 1)"
+    >
+      <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+
+    @for (p of pageNumbers(); track p) {
+      <button
+        type="button"
+        class="pagination__btn"
+        [class.pagination__btn--active]="p === page()"
+        (click)="goToPage(p)"
+      >
+        {{ p }}
+      </button>
+    }
+
+    <button
+      type="button"
+      class="pagination__btn"
+      [disabled]="page() === totalPages()"
+      (click)="goToPage(page() + 1)"
+    >
+      <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+
+    @if (total() !== null) {
+      <span class="pagination__total">{{ total() }} {{ itemLabel() }}</span>
+    }
+  </div>
+}

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backend (FastAPI) web.config for the SERVER deployment.
+  The two absolute paths below default to C:\inetpub\cpbot\backend.
+  Setup-Server.ps1 rewrites them to your actual install folder automatically.
+  If you configure by hand, change BOTH paths to <your-backend-folder>.
+-->
+<configuration>
+  <system.webServer>
+    <handlers>
+      <remove name="httpPlatformHandler" />
+      <add name="httpPlatformHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified" />
+    </handlers>
+    <httpPlatform processPath="C:\inetpub\cpbot\backend\.venv\Scripts\python.exe"
+                  arguments="-m uvicorn main:app --host 127.0.0.1 --port %HTTP_PLATFORM_PORT%"
+                  stdoutLogEnabled="true"
+                  stdoutLogFile="C:\inetpub\cpbot\backend\logs\backend-stdout"
+                  startupTimeLimit="120"
+                  startupRetryCount="3"
+                  requestTimeout="00:04:00">
+      <environmentVariables>
+        <environmentVariable name="PYTHONUNBUFFERED" value="1" />
+      </environmentVariables>
+    </httpPlatform>
+  </system.webServer>
+</configuration>

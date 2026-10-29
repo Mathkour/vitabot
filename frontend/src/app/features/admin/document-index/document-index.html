@@ -1,0 +1,72 @@
+<div class="document-index">
+  <div class="document-index__header">
+    <h2>{{ lang.translate('documentIndex.title') }}</h2>
+    <p class="document-index__subtext">{{ lang.translate('documentIndex.subtitle') }}</p>
+  </div>
+
+  <form class="document-index__search-row" (ngSubmit)="search()">
+    <div class="document-index__search-field">
+      <input
+        type="text"
+        class="document-index__search-input"
+        [placeholder]="lang.translate('documentIndex.searchPlaceholder')"
+        [ngModel]="query()"
+        (ngModelChange)="onQueryInput($event)"
+        name="query"
+        autocomplete="off"
+      />
+      @if (isSearching()) {
+        <span class="document-index__input-spinner" aria-hidden="true"></span>
+      }
+    </div>
+    <button type="submit" class="btn btn-primary" [disabled]="isSearching() || !query().trim()">
+      <span class="material-symbols-outlined">search</span>
+      {{ lang.translate('documentIndex.search') }}
+    </button>
+  </form>
+
+  @if (searchError()) {
+    <p class="error-text">{{ searchError() }}</p>
+  } @else if (hasSearched() && !isSearching() && results().length === 0) {
+    <p class="document-index__empty">{{ lang.translate('documentIndex.noResults') }}</p>
+  } @else if (results().length > 0) {
+    <div class="document-index__results">
+      @for (result of results(); track result.page_id) {
+        <button type="button" class="card document-index__result" (click)="openResult(result)">
+          <div class="document-index__result-header">
+            <span class="material-symbols-outlined document-index__result-icon">description</span>
+            <span class="document-index__result-file">{{ result.file_name }}</span>
+            <span class="document-index__result-page">{{ pageLabel(result) }}</span>
+          </div>
+          <p class="document-index__result-snippet" [innerHTML]="result.snippet"></p>
+        </button>
+      }
+    </div>
+  }
+</div>
+
+@if (isModalOpen()) {
+  <div class="document-index__overlay" (click)="closeModal()">
+    <div class="card document-index__modal" (click)="$event.stopPropagation()">
+      @if (isLoadingPage()) {
+        <div class="document-index__loading">
+          <span class="document-index__spinner"></span>
+          {{ lang.translate('common.loading') }}
+        </div>
+      } @else if (pageError()) {
+        <p class="error-text">{{ pageError() }}</p>
+      } @else if (selectedPage(); as page) {
+        <div class="document-index__modal-header">
+          <div>
+            <h3 class="document-index__modal-title">{{ page.file_name }}</h3>
+            <p class="document-index__modal-subtitle">{{ pageLabel(page) }}</p>
+          </div>
+          <button type="button" class="document-index__modal-close" (click)="closeModal()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="document-index__modal-body">{{ page.text_content }}</div>
+      }
+    </div>
+  </div>
+}

@@ -1,0 +1,70 @@
+.upload-lock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 21, 48, 0.65);
+  padding: 16px;
+  animation: upload-lock-fade-in 0.15s ease;
+}
+
+@keyframes upload-lock-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.upload-lock-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 32px 28px;
+  animation: upload-lock-pop-in 0.15s ease;
+}
+
+@keyframes upload-lock-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.upload-lock-spinner {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: upload-lock-spin 0.7s linear infinite;
+  margin-bottom: 6px;
+}
+
+@keyframes upload-lock-spin {
+  to { transform: rotate(360deg); }
+}
+
+.upload-lock-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  word-break: break-word;
+}
+
+.upload-lock-hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.upload-lock-cancel {
+  margin-top: 10px;
+}

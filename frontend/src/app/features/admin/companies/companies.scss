@@ -1,0 +1,157 @@
+.companies {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 24px;
+  width: 100%;
+}
+
+.companies__header h2 {
+  margin: 0;
+}
+
+.companies__subtext {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 6px 0 0;
+}
+
+.companies__create-card {
+  padding: 18px 20px;
+}
+
+.companies__create-form {
+  display: flex;
+  gap: 10px;
+}
+
+.companies__create-input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+}
+
+.companies__loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 20px;
+}
+
+.companies__spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: companies-spin 0.7s linear infinite;
+}
+
+@keyframes companies-spin {
+  to { transform: rotate(360deg); }
+}
+
+.companies__empty {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 20px;
+  text-align: center;
+}
+
+.companies__table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.companies__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    text-align: start;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  thead th {
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  td {
+    color: var(--color-text);
+    font-weight: 500;
+  }
+}
+
+.companies__edit-input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-accent);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 13px;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.companies__actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.companies__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+
+  .material-symbols-outlined {
+    font-size: 16px;
+  }
+
+  &:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+
+  &--danger:hover {
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+  }
+}

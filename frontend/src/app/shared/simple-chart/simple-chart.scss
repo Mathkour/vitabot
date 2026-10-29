@@ -1,0 +1,119 @@
+:host {
+  --simple-chart-series-1: #2a78d6;
+  --simple-chart-series-2: #eb6834;
+  --simple-chart-series-3: #1baf7a;
+  --simple-chart-series-4: #eda100;
+  --simple-chart-series-5: #e87ba4;
+  --simple-chart-series-6: #008300;
+  --simple-chart-series-7: #4a3aa7;
+  --simple-chart-series-8: #e34948;
+
+  :host-context([data-theme='dark']) & {
+    --simple-chart-series-1: #3987e5;
+    --simple-chart-series-2: #d95926;
+    --simple-chart-series-3: #199e70;
+    --simple-chart-series-4: #c98500;
+    --simple-chart-series-5: #d55181;
+    --simple-chart-series-6: #008300;
+    --simple-chart-series-7: #9085e9;
+    --simple-chart-series-8: #e66767;
+  }
+
+  display: block;
+  margin-top: 12px;
+}
+
+.simple-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 340px;
+}
+
+.simple-chart__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.simple-chart__svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.simple-chart__baseline {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.simple-chart__bar {
+  fill: var(--simple-chart-series-1);
+}
+
+.simple-chart__value-label {
+  font-size: 9px;
+  font-weight: 600;
+  fill: var(--color-text);
+  text-anchor: middle;
+}
+
+.simple-chart__category-label {
+  font-size: 8px;
+  fill: var(--color-text-secondary);
+  text-anchor: middle;
+}
+
+.simple-chart__pie-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.simple-chart__svg--pie {
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.simple-chart__legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+  flex: 1;
+}
+
+.simple-chart__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text);
+}
+
+.simple-chart__legend-swatch {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.simple-chart__legend-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simple-chart__legend-value {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}

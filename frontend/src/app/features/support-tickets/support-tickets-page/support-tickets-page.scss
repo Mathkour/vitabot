@@ -1,0 +1,135 @@
+.support {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.support__subtext {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+.support__status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 16px 0;
+}
+
+.support__spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: support-spin 0.7s linear infinite;
+}
+
+@keyframes support-spin {
+  to { transform: rotate(360deg); }
+}
+
+.support__empty {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.support__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.support__item {
+  padding: 0;
+  overflow: hidden;
+}
+
+.support__item-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: start;
+
+  .material-symbols-outlined {
+    color: var(--color-text-secondary);
+  }
+}
+
+.support__item-question {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.support__thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.support__message {
+  display: flex;
+  margin-top: 10px;
+
+  &--admin {
+    justify-content: flex-start;
+  }
+
+  &:not(.support__message--admin) {
+    justify-content: flex-end;
+  }
+}
+
+.support__message-bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  background: var(--color-bg);
+  color: var(--color-text);
+
+  .support__message--admin & {
+    background: var(--color-info-bg);
+  }
+}
+
+.support__reply-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: var(--color-input);
+  color: var(--color-text);
+  outline: none;
+  resize: vertical;
+  margin-top: 10px;
+
+  &:focus {
+    border-color: var(--color-accent);
+  }
+}
+
+.support__reply-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}

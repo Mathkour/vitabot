@@ -1,0 +1,65 @@
+<div class="odoo-chat">
+  <app-superadmin-nav />
+
+  <div class="odoo-chat__header">
+    <h2>{{ lang.translate('odoo.chatTitle') }}</h2>
+    <p class="odoo-chat__subtext">{{ lang.translate('odoo.chatSubtitle') }}</p>
+  </div>
+
+  <div class="odoo-chat__messages" #scrollContainer>
+    @if (messages().length === 0) {
+      <div class="odoo-chat__empty">
+        <span class="material-symbols-outlined odoo-chat__empty-icon">forum</span>
+        <p>{{ lang.translate('odoo.chatEmptyPrompt') }}</p>
+      </div>
+    }
+
+    @for (message of messages(); track message.id) {
+      <div class="odoo-chat__row" [class.odoo-chat__row--user]="message.role === 'user'">
+        <div
+          class="odoo-chat__bubble"
+          [class.odoo-chat__bubble--user]="message.role === 'user'"
+          [class.odoo-chat__bubble--assistant]="message.role === 'assistant'"
+        >
+          <p class="odoo-chat__bubble-text">{{ message.text }}</p>
+        </div>
+      </div>
+    }
+
+    @if (isLoading()) {
+      <div class="odoo-chat__row">
+        <div class="odoo-chat__bubble odoo-chat__bubble--assistant odoo-chat__bubble--typing">
+          <span class="odoo-chat__typing-dot"></span>
+          <span class="odoo-chat__typing-dot"></span>
+          <span class="odoo-chat__typing-dot"></span>
+        </div>
+      </div>
+    }
+  </div>
+
+  @if (errorMessage()) {
+    <p class="error-text odoo-chat__error">{{ errorMessage() }}</p>
+  }
+
+  <form class="odoo-chat__input-row" (ngSubmit)="send()">
+    <textarea
+      class="odoo-chat__input"
+      rows="1"
+      [placeholder]="lang.translate('odoo.chatInputPlaceholder')"
+      [ngModel]="draft()"
+      (ngModelChange)="draft.set($event)"
+      (keydown)="onKeydown($event)"
+      name="message"
+      [disabled]="isLoading()"
+    ></textarea>
+
+    <button
+      type="submit"
+      class="btn btn-primary odoo-chat__send"
+      [disabled]="isLoading() || !draft().trim()"
+    >
+      <span class="material-symbols-outlined">send</span>
+      {{ lang.translate('chat.send') }}
+    </button>
+  </form>
+</div>

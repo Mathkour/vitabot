@@ -1,0 +1,13 @@
+<div class="sso">
+  <div class="sso__card">
+    @if (failed()) {
+      <p class="sso__message sso__message--error">{{ lang.translate('sso.invalidLink') }}</p>
+      <button type="button" class="btn btn-primary" (click)="goToLogin()">
+        {{ lang.translate('sso.backToLogin') }}
+      </button>
+    } @else {
+      <span class="sso__spinner"></span>
+      <p class="sso__message">{{ lang.translate('sso.signingIn') }}</p>
+    }
+  </div>
+</div>

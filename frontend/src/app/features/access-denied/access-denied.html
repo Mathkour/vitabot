@@ -1,0 +1,10 @@
+<div class="access-denied">
+  <div class="access-denied__card">
+    <span class="material-symbols-outlined access-denied__icon">block</span>
+    <h1 class="access-denied__title">{{ lang.translate('accessDenied.title') }}</h1>
+    <p class="access-denied__message">{{ lang.translate('accessDenied.message') }}</p>
+    <button type="button" class="btn btn-primary" (click)="goToSafety()">
+      {{ lang.translate('accessDenied.goBack') }}
+    </button>
+  </div>
+</div>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Points at our own controller (/vita_bot/sso), not the frontend
+         directly — the controller signs the current Odoo user into cpbot
+         server-to-server, then redirects the browser to the frontend's
+         /sso-login with a token already attached. -->
+    <record id="action_vita_bot_link" model="ir.actions.act_url">
+        <field name="name">Vita Bot</field>
+        <field name="url">/vita_bot/sso</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem
+        id="menu_vita_bot_root"
+        name="Vita Bot"
+        action="action_vita_bot_link"
+        web_icon="cpbot_vita_bot_link,static/description/icon.png"
+        sequence="100"
+        groups="base.group_user"
+    />
+</odoo>

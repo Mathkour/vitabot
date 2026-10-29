@@ -1,0 +1,123 @@
+<div class="faq">
+  <div class="faq__header">
+    <h2>{{ lang.translate('faq.title') }}</h2>
+    <p class="faq__subtext">{{ lang.translate('faq.subtitle') }}</p>
+  </div>
+
+  @if (isLoading()) {
+    <div class="faq__status">
+      <span class="faq__spinner"></span>
+      {{ lang.translate('common.loading') }}
+    </div>
+  } @else if (errorMessage()) {
+    <p class="error-text">{{ errorMessage() }}</p>
+  } @else if (categorySummaries().length === 0) {
+    <p class="faq__empty">{{ lang.translate('faq.empty') }}</p>
+  } @else {
+    <input
+      type="text"
+      class="faq__search"
+      [placeholder]="lang.translate('faq.searchPlaceholder')"
+      [ngModel]="searchQuery()"
+      (ngModelChange)="onSearchChange($event)"
+    />
+
+    @if (!isSearching()) {
+      <div class="faq__categories">
+        @for (summary of categorySummaries(); track summary.category_id) {
+          <div class="faq__category" [class.faq__category--open]="expandedCategoryIds().has(summary.category_id)">
+            <button
+              type="button"
+              class="faq__category-header"
+              (click)="toggleCategory(summary.category_id)"
+              [attr.aria-expanded]="expandedCategoryIds().has(summary.category_id)"
+            >
+              <span class="faq__category-title">{{ categoryName(summary) }}</span>
+              <span class="faq__category-count">{{ summary.total }}</span>
+              <span class="material-symbols-outlined faq__chevron">expand_more</span>
+            </button>
+
+            @if (expandedCategoryIds().has(summary.category_id)) {
+              @let pageState = categoryPageState(summary.category_id);
+              <div class="faq__list faq__list--nested">
+                @if (pageState?.loading && (pageState?.faqs?.length ?? 0) === 0) {
+                  <div class="faq__status">
+                    <span class="faq__spinner"></span>
+                    {{ lang.translate('common.loading') }}
+                  </div>
+                } @else if (pageState?.error) {
+                  <p class="error-text">{{ pageState?.error }}</p>
+                } @else {
+                  @for (item of pageState?.faqs ?? []; track item.id) {
+                    <div class="faq__item" [class.faq__item--open]="expandedIds().has(item.id)">
+                      <button
+                        type="button"
+                        class="faq__question"
+                        (click)="toggle(item.id)"
+                        [attr.aria-expanded]="expandedIds().has(item.id)"
+                      >
+                        <span class="faq__question-text">{{ displayQuestion(item) }}</span>
+                        <span class="material-symbols-outlined faq__chevron">expand_more</span>
+                      </button>
+
+                      @if (expandedIds().has(item.id)) {
+                        <p class="faq__answer">{{ displayAnswer(item) }}</p>
+                      }
+                    </div>
+                  }
+
+                  @if (pageState && pageState.totalPages > 1) {
+                    <app-pagination
+                      [page]="pageState.page"
+                      [totalPages]="pageState.totalPages"
+                      [total]="pageState.total"
+                      itemLabel="questions"
+                      (pageChange)="goToCategoryPage(summary.category_id, $event)"
+                    />
+                  }
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    } @else if (searchCorpusLoading()) {
+      <div class="faq__status">
+        <span class="faq__spinner"></span>
+        {{ lang.translate('common.loading') }}
+      </div>
+    } @else if (searchCorpusError()) {
+      <p class="error-text">{{ searchCorpusError() }}</p>
+    } @else if (filteredItems().length === 0) {
+      <p class="faq__empty">{{ lang.translate('faq.noResults') }}</p>
+    } @else {
+      <div class="faq__list">
+        @for (item of pagedItems(); track item.id) {
+          <div class="faq__item" [class.faq__item--open]="expandedIds().has(item.id)">
+            <button
+              type="button"
+              class="faq__question"
+              (click)="toggle(item.id)"
+              [attr.aria-expanded]="expandedIds().has(item.id)"
+            >
+              <span class="faq__question-text">{{ displayQuestion(item) }}</span>
+              <span class="material-symbols-outlined faq__chevron">expand_more</span>
+            </button>
+
+            @if (expandedIds().has(item.id)) {
+              <p class="faq__answer">{{ displayAnswer(item) }}</p>
+            }
+          </div>
+        }
+      </div>
+
+      <app-pagination
+        [page]="page()"
+        [totalPages]="totalPages()"
+        [total]="filteredItems().length"
+        itemLabel="questions"
+        (pageChange)="page.set($event)"
+      />
+    }
+  }
+</div>

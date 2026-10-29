@@ -1,0 +1,155 @@
+<div class="superadmin">
+  <app-superadmin-nav />
+
+  <div class="superadmin__header">
+    <div>
+      <h2>{{ lang.translate('superadmin.title') }}</h2>
+      <p class="superadmin__subtext">{{ lang.translate('superadmin.subtitle') }}</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openModal()">
+      <span class="material-symbols-outlined">add_business</span>
+      {{ lang.translate('superadmin.createCompany') }}
+    </button>
+  </div>
+
+  @if (successMessage()) {
+    <p class="superadmin__success pill pill-success">
+      <span class="material-symbols-outlined superadmin__pill-icon">check_circle</span>
+      {{ successMessage() }}
+    </p>
+  }
+
+  <div class="card superadmin__table-card">
+    @if (isLoading()) {
+      <div class="superadmin__list-loading">
+        <span class="superadmin__spinner"></span>
+        {{ lang.translate('common.loading') }}
+      </div>
+    } @else if (loadError()) {
+      <p class="error-text">{{ loadError() }}</p>
+    } @else if (tenants().length === 0) {
+      <p class="superadmin__list-empty">{{ lang.translate('superadmin.noTenantsYet') }}</p>
+    } @else {
+      <div class="superadmin__table-wrap">
+        <table class="superadmin__table">
+          <thead>
+            <tr>
+              <th>{{ lang.translate('superadmin.colName') }}</th>
+              <th>{{ lang.translate('superadmin.colColors') }}</th>
+              <th>{{ lang.translate('superadmin.colCreated') }}</th>
+              <th>{{ lang.translate('superadmin.colActions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tenant of tenants(); track tenant.id) {
+              <tr>
+                <td>
+                  <div class="superadmin__name-cell">
+                    @if (tenant.logo_path) {
+                      <img class="superadmin__logo-thumb" [src]="tenant.logo_path" alt="" />
+                    } @else {
+                      <span class="material-symbols-outlined superadmin__logo-placeholder">business</span>
+                    }
+                    <span class="superadmin__name-text">{{ tenant.name || '—' }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="superadmin__swatches">
+                    <span
+                      class="superadmin__swatch"
+                      [style.background]="tenant.primary_color || 'var(--color-border)'"
+                      title="Primary"
+                    ></span>
+                    <span
+                      class="superadmin__swatch"
+                      [style.background]="tenant.action_color || 'var(--color-border)'"
+                      title="Accent"
+                    ></span>
+                  </div>
+                </td>
+                <td class="superadmin__created-cell">{{ formatDate(tenant.created_at) }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="btn btn-secondary superadmin__enter-btn"
+                    (click)="enterAsTenant(tenant)"
+                  >
+                    <span class="material-symbols-outlined">login</span>
+                    {{ lang.translate('superadmin.enterAsTenant') }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (isModalOpen()) {
+  <div class="superadmin__overlay" (click)="closeModal()">
+    <div class="card superadmin__modal" (click)="$event.stopPropagation()">
+      <h3 class="superadmin__modal-title">{{ lang.translate('superadmin.modalTitle') }}</h3>
+      <p class="superadmin__subtext">{{ lang.translate('superadmin.modalSubtitle') }}</p>
+
+      @if (createError()) {
+        <p class="error-text superadmin__error">{{ createError() }}</p>
+      }
+
+      <form class="superadmin__form" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="form-field">
+          <label for="tenant-company-name">{{ lang.translate('superadmin.companyName') }}</label>
+          <input
+            id="tenant-company-name"
+            type="text"
+            formControlName="company_name"
+            autocomplete="organization"
+            placeholder="Acme Inc."
+          />
+          @if (form.controls.company_name.invalid && form.controls.company_name.touched) {
+            <span class="error-text">{{ lang.translate('auth.companyNameRequired') }}</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="tenant-email">{{ lang.translate('superadmin.adminEmail') }}</label>
+          <input
+            id="tenant-email"
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="owner@company.com"
+          />
+          @if (form.controls.email.invalid && form.controls.email.touched) {
+            <span class="error-text">{{ lang.translate('common.emailRequired') }}</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="tenant-password">{{ lang.translate('superadmin.adminPassword') }}</label>
+          <input
+            id="tenant-password"
+            type="password"
+            appPasswordToggle
+            formControlName="password"
+            autocomplete="new-password"
+            [placeholder]="lang.translate('users.passwordPlaceholder')"
+          />
+          @if (form.controls.password.invalid && form.controls.password.touched) {
+            <span class="error-text">{{ lang.translate('common.passwordRequired') }}</span>
+          }
+        </div>
+
+        <div class="superadmin__modal-actions">
+          <button type="button" class="btn btn-secondary" [disabled]="isCreating()" (click)="closeModal()">
+            {{ lang.translate('common.cancel') }}
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="isCreating()">
+            {{ isCreating() ? lang.translate('superadmin.creating') : lang.translate('superadmin.createCompany') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

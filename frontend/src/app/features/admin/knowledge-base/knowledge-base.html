@@ -1,0 +1,1149 @@
+<div class="kb">
+  <!-- Left: Categories panel -->
+  <aside class="kb__aside">
+    <div class="kb__aside-top">
+      <h2 class="kb__aside-title">Knowledge Base</h2>
+
+      @if (addCategoryError()) {
+        <p class="error-text kb__add-error">{{ addCategoryError() }}</p>
+      }
+
+      <div class="kb__add-row">
+        <input
+          class="kb__add-input"
+          type="text"
+          placeholder="New category..."
+          [ngModel]="newCategoryName()"
+          (ngModelChange)="newCategoryName.set($event)"
+          (keydown.enter)="addCategory()"
+        />
+        <button
+          type="button"
+          class="btn btn-primary kb__add-btn"
+          [disabled]="isAddingCategory() || !newCategoryName().trim()"
+          (click)="addCategory()"
+          title="Add category"
+        >
+          <span class="material-symbols-outlined">add</span>
+        </button>
+      </div>
+    </div>
+
+    @if (categoriesError()) {
+      <p class="error-text kb__aside-error">{{ categoriesError() }}</p>
+    } @else if (categories().length === 0) {
+      <p class="kb__aside-empty">No categories yet. Add one above.</p>
+    } @else {
+      <ul class="kb__cat-list">
+        @for (cat of categories(); track cat.id) {
+          <li
+            class="kb__cat-item"
+            [class.kb__cat-item--active]="selectedCategory()?.id === cat.id"
+          >
+            <div class="kb__cat-row" (click)="selectCategory(cat)">
+              <span class="material-symbols-outlined kb__cat-icon">folder</span>
+              @if (editingCategoryId() === cat.id) {
+                <input
+                  class="kb__edit-input"
+                  type="text"
+                  [ngModel]="editCategoryName()"
+                  (ngModelChange)="editCategoryName.set($event)"
+                  (click)="$event.stopPropagation()"
+                  (keydown.enter)="saveRenameCategory(cat)"
+                  (keydown.escape)="cancelRenameCategory()"
+                />
+                <button
+                  type="button"
+                  class="kb__delete-btn kb__delete-btn--confirm"
+                  title="Save"
+                  [disabled]="isRenamingCategory() || !editCategoryName().trim()"
+                  (click)="$event.stopPropagation(); saveRenameCategory(cat)"
+                >
+                  <span class="material-symbols-outlined">check</span>
+                </button>
+                <button
+                  type="button"
+                  class="kb__delete-btn"
+                  title="Cancel"
+                  [disabled]="isRenamingCategory()"
+                  (click)="$event.stopPropagation(); cancelRenameCategory()"
+                >
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              } @else {
+                <span class="kb__cat-name">{{ cat.name }}</span>
+                <div class="kb__cat-actions">
+                  <button
+                    type="button"
+                    class="kb__cat-lock-btn"
+                    title="Rename category"
+                    (click)="$event.stopPropagation(); startRenameCategory(cat)"
+                  >
+                    <span class="material-symbols-outlined">edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="kb__cat-lock-btn"
+                    [class.kb__cat-lock-btn--published]="cat.is_published"
+                    [class.kb__cat-lock-btn--draft]="!cat.is_published"
+                    [disabled]="togglingPublishIds().has(cat.id)"
+                    [title]="cat.is_published ? 'Published — click to unpublish' : 'Draft — click to publish'"
+                    (click)="$event.stopPropagation(); cat.is_published ? unpublishCategory(cat) : publishCategory(cat)"
+                  >
+                    <span class="material-symbols-outlined">
+                      {{ cat.is_published ? 'lock_open' : 'lock' }}
+                    </span>
+                  </button>
+                </div>
+              }
+            </div>
+
+            @if (editingCategoryId() === cat.id && renameCategoryError()) {
+              <p class="error-text kb__cat-publish-error">{{ renameCategoryError() }}</p>
+            }
+            @if (publishErrors().get(cat.id)) {
+              <p class="error-text kb__cat-publish-error">{{ publishErrors().get(cat.id) }}</p>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </aside>
+
+  <!-- Right: Content panel -->
+  <main class="kb__main">
+    @if (!selectedCategory()) {
+      <div class="kb__empty-state">
+        <span class="material-symbols-outlined kb__empty-icon">folder_open</span>
+        <p>Select a category to view and manage its files.</p>
+      </div>
+    } @else {
+      <div class="kb__detail">
+        <div class="kb__detail-header">
+          <h3 class="kb__detail-title">{{ selectedCategory()!.name }}</h3>
+          <button
+            type="button"
+            class="kb__delete-category-btn"
+            [disabled]="isDeletingCategory()"
+            (click)="deleteCategory(selectedCategory()!)"
+          >
+            <span class="material-symbols-outlined">delete_forever</span>
+            Delete Category
+          </button>
+        </div>
+
+        @if (deleteCategoryError()) {
+          <p class="error-text">{{ deleteCategoryError() }}</p>
+        }
+
+        <!-- Manage / Library tabs -->
+        <div class="kb__tabs">
+          <button
+            type="button"
+            class="kb__tab"
+            [class.kb__tab--active]="activeTab() === 'manage'"
+            (click)="setActiveTab('manage')"
+          >
+            <span class="material-symbols-outlined">edit_note</span>
+            Manage
+          </button>
+          <button
+            type="button"
+            class="kb__tab"
+            [class.kb__tab--active]="activeTab() === 'library'"
+            (click)="setActiveTab('library')"
+          >
+            <span class="material-symbols-outlined">video_library</span>
+            Library
+          </button>
+        </div>
+
+        @if (activeTab() === 'manage') {
+          <!-- Document upload: full width -->
+          <div class="card kb__upload-card kb__upload-card--file">
+            <div class="kb__upload-card-hd">
+              <span class="material-symbols-outlined">description</span>
+              <strong>Upload File</strong>
+            </div>
+            <p class="kb__upload-hint">PDF, Word (.docx), Excel (.xlsx), Text (.txt), PowerPoint (.pptx)</p>
+
+            <div class="kb__doc-controls">
+              <label
+                class="btn btn-secondary kb__file-label kb__file-label--grow"
+                [class.kb__file-label--disabled]="isUploadingAny()"
+                [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+              >
+                <span class="material-symbols-outlined">upload_file</span>
+                {{ docFileLabel() }}
+                <input
+                  type="file"
+                  class="kb__file-input"
+                  multiple
+                  [disabled]="isUploadingAny()"
+                  accept=".pdf,.docx,.xlsx,.txt,.pptx,.ppt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint"
+                  (change)="onDocFilesSelected($event)"
+                />
+              </label>
+
+              <input
+                class="kb__media-desc kb__doc-controls-input"
+                type="text"
+                placeholder="Display name (optional)"
+                [ngModel]="docDisplayName()"
+                (ngModelChange)="docDisplayName.set($event)"
+                [disabled]="isUploadingAny()"
+              />
+
+              @if (linkableMediaItems().length > 0) {
+                <app-dropdown-select
+                  class="kb__doc-controls-dropdown"
+                  [options]="linkedMediaOptions()"
+                  [value]="docLinkedMediaId()"
+                  [disabled]="isUploadingAny()"
+                  (valueChange)="docLinkedMediaId.set($event)"
+                />
+              }
+
+              <button
+                type="button"
+                class="btn btn-primary"
+                [disabled]="docStagedFiles().length === 0 || isUploadingAny()"
+                [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+                (click)="submitDocUpload()"
+              >
+                <span class="material-symbols-outlined">upload</span>
+                {{ isDocUploading() ? 'Uploading...' : 'Upload' }}
+              </button>
+            </div>
+
+            @if (docStagedFiles().length > 1) {
+              <p class="kb__upload-queue-hint">Selected: {{ docStagedFileNames() }}</p>
+            }
+            @if (linkableMediaItems().length === 0) {
+              <p class="kb__upload-hint">No videos/links in this category yet to link to.</p>
+            }
+            @if (isDocUploading() && docQueueLength() > 0) {
+              <p class="kb__upload-queue-hint">+{{ docQueueLength() }} more queued</p>
+            }
+          </div>
+
+          <!-- Upload cards row -->
+          <div class="kb__upload-row">
+            <!-- Media upload -->
+            <div class="card kb__upload-card">
+              <div class="kb__upload-card-hd">
+                <span class="material-symbols-outlined">perm_media</span>
+                <strong>Upload Media</strong>
+              </div>
+              <p class="kb__upload-hint">MP4, MOV, WebM, JPG, PNG, GIF, WebP</p>
+
+              @if (mediaFileError()) {
+                <p class="error-text kb__media-err">{{ mediaFileError() }}</p>
+              }
+
+              @if (isUploadingMedia()) {
+                <div class="kb__media-progress">
+                  <span class="kb__spinner"></span>
+                  Uploading {{ mediaFile()?.name }}...
+                </div>
+              }
+
+              <input
+                class="kb__media-desc"
+                type="text"
+                placeholder="Description (required)"
+                [ngModel]="mediaDescription()"
+                (ngModelChange)="mediaDescription.set($event)"
+                [disabled]="isUploadingAny()"
+              />
+              <input
+                class="kb__media-desc"
+                type="text"
+                placeholder="Display name (optional)"
+                [ngModel]="mediaDisplayName()"
+                (ngModelChange)="mediaDisplayName.set($event)"
+                [disabled]="isUploadingAny()"
+              />
+
+              <div class="kb__media-actions">
+                <label
+                  class="btn btn-secondary kb__file-label kb__file-label--grow"
+                  [class.kb__file-label--disabled]="isUploadingAny()"
+                  [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+                >
+                  <span class="material-symbols-outlined">attach_file</span>
+                  {{ mediaFile() ? mediaFile()!.name : 'Choose file' }}
+                  <input
+                    type="file"
+                    class="kb__file-input"
+                    [disabled]="isUploadingAny()"
+                    accept=".mp4,.mov,.webm,.jpg,.jpeg,.png,.gif,.webp,video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/gif,image/webp"
+                    (change)="onMediaFileSelected($event)"
+                  />
+                </label>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  [disabled]="!mediaFile() || !mediaDescription().trim() || isUploadingAny()"
+                  [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+                  (click)="submitMedia()"
+                >
+                  <span class="material-symbols-outlined">upload</span>
+                  {{ isUploadingMedia() ? 'Uploading...' : 'Upload' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Video link -->
+            <div class="card kb__upload-card">
+              <div class="kb__upload-card-hd">
+                <span class="material-symbols-outlined">link</span>
+                <strong>Add Video Link</strong>
+              </div>
+              <p class="kb__upload-hint">YouTube, Google Drive, or any external URL</p>
+
+              @if (linkError()) {
+                <p class="error-text kb__media-err">{{ linkError() }}</p>
+              }
+
+              <app-dropdown-select
+                [options]="linkTypeOptions"
+                [value]="linkType()"
+                [disabled]="isUploadingAny()"
+                (valueChange)="onLinkTypeChange($event)"
+              />
+              <input
+                class="kb__media-desc"
+                type="url"
+                placeholder="https://..."
+                [ngModel]="linkUrl()"
+                (ngModelChange)="linkUrl.set($event)"
+                [disabled]="isUploadingAny()"
+              />
+              @if (linkUrlError()) {
+                <p class="error-text kb__media-err">{{ linkUrlError() }}</p>
+              }
+              <input
+                class="kb__media-desc"
+                type="text"
+                placeholder="Description (required)"
+                [ngModel]="linkDescription()"
+                (ngModelChange)="linkDescription.set($event)"
+                [disabled]="isUploadingAny()"
+              />
+              <input
+                class="kb__media-desc"
+                type="text"
+                placeholder="Display name (optional)"
+                [ngModel]="linkDisplayName()"
+                (ngModelChange)="linkDisplayName.set($event)"
+                [disabled]="isUploadingAny()"
+              />
+
+              <div class="kb__media-actions">
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  [disabled]="!linkUrl().trim() || !linkDescription().trim() || !!linkUrlError() || isUploadingAny()"
+                  [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+                  (click)="submitLink()"
+                >
+                  <span class="material-symbols-outlined">add_link</span>
+                  {{ isAddingLink() ? 'Adding...' : 'Add Link' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- In-progress document uploads (upload feedback, not a record list) -->
+          @if (docUploads().length > 0) {
+            <ul class="kb__item-list kb__progress-list">
+              @for (item of docUploads(); track item.localId) {
+                <li class="kb__item">
+                  <span class="material-symbols-outlined kb__item-icon">description</span>
+                  @if (item.status === 'uploading') {
+                    <span class="kb__item-name">Uploading {{ item.filename }}...</span>
+                    <span class="pill pill-warning">
+                      <span class="kb__spinner"></span>
+                      Uploading...
+                    </span>
+                  } @else {
+                    <span class="kb__item-name">{{ item.filename }}</span>
+                    <span class="pill pill-danger">{{ item.errorMessage }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (deleteDocError()) {
+            <p class="error-text kb__delete-err">{{ deleteDocError() }}</p>
+          }
+          @if (deleteMediaError()) {
+            <p class="error-text">{{ deleteMediaError() }}</p>
+          }
+
+          <!-- Suggested Questions: add form only -->
+          <section class="kb__section">
+            <h4 class="kb__section-title">
+              <span class="material-symbols-outlined">help</span>
+              Add Suggested Question
+            </h4>
+
+            @if (addQuestionError()) {
+              <p class="error-text">{{ addQuestionError() }}</p>
+            }
+
+            <div class="kb__sq-form">
+              <input
+                #sqQuestionInput
+                class="kb__add-input"
+                type="text"
+                placeholder="Question..."
+                [ngModel]="newQuestionText()"
+                (ngModelChange)="newQuestionText.set($event)"
+              />
+              <textarea
+                #sqAnswerInput
+                class="kb__sq-answer-input"
+                rows="2"
+                placeholder="Fixed answer (optional)..."
+                [ngModel]="newAnswerText()"
+                (ngModelChange)="newAnswerText.set($event)"
+              ></textarea>
+              <p class="kb__sq-hint">Leave empty to let the AI answer.</p>
+              <button
+                type="button"
+                class="btn btn-primary"
+                [disabled]="isAddingQuestion() || !newQuestionText().trim()"
+                (click)="addSuggestedQuestion(sqQuestionInput.value, sqAnswerInput.value)"
+              >
+                <span class="material-symbols-outlined">add</span>
+                {{ isAddingQuestion() ? 'Adding...' : 'Add' }}
+              </button>
+            </div>
+          </section>
+        } @else {
+          <!-- Library sub-tabs -->
+          <div class="kb__subtabs">
+            <button
+              type="button"
+              class="kb__subtab"
+              [class.kb__subtab--active]="librarySubTab() === 'files'"
+              (click)="setLibrarySubTab('files')"
+            >
+              <span class="material-symbols-outlined">description</span>
+              Files
+            </button>
+            <button
+              type="button"
+              class="kb__subtab"
+              [class.kb__subtab--active]="librarySubTab() === 'images'"
+              (click)="setLibrarySubTab('images')"
+            >
+              <span class="material-symbols-outlined">image</span>
+              Images
+            </button>
+            <button
+              type="button"
+              class="kb__subtab"
+              [class.kb__subtab--active]="librarySubTab() === 'videos'"
+              (click)="setLibrarySubTab('videos')"
+            >
+              <span class="material-symbols-outlined">movie</span>
+              Videos
+            </button>
+            <button
+              type="button"
+              class="kb__subtab"
+              [class.kb__subtab--active]="librarySubTab() === 'links'"
+              (click)="setLibrarySubTab('links')"
+            >
+              <span class="material-symbols-outlined">link</span>
+              Links
+            </button>
+            <button
+              type="button"
+              class="kb__subtab"
+              [class.kb__subtab--active]="librarySubTab() === 'questions'"
+              (click)="setLibrarySubTab('questions')"
+            >
+              <span class="material-symbols-outlined">help</span>
+              Questions
+            </button>
+          </div>
+
+          @if (librarySubTab() === 'files') {
+            <!-- Files -->
+            @if (contentLoading()) {
+              <div class="kb__content-loading">
+                <span class="kb__spinner kb__spinner--lg"></span>
+                Loading...
+              </div>
+            } @else if (contentError()) {
+              <p class="error-text">{{ contentError() }}</p>
+            } @else if (content()) {
+              @if (deleteDocError()) {
+                <p class="error-text kb__delete-err">{{ deleteDocError() }}</p>
+              }
+              @if (renameDocError()) {
+                <p class="error-text kb__delete-err">{{ renameDocError() }}</p>
+              }
+              @if (downloadDocError()) {
+                <p class="error-text kb__delete-err">{{ downloadDocError() }}</p>
+              }
+              <section class="kb__section">
+                <h4 class="kb__section-title">
+                  <span class="material-symbols-outlined">description</span>
+                  Documents ({{ libraryDocuments().length }})
+                </h4>
+                @if (libraryDocuments().length === 0) {
+                  <p class="kb__section-empty">No documents in this category yet.</p>
+                } @else {
+                  <ul class="kb__item-list">
+                    @for (doc of pagedDocuments(); track doc.id) {
+                      <li class="kb__item">
+                        <span class="material-symbols-outlined kb__item-icon">
+                          {{ doc.is_spreadsheet ? 'table_chart' : 'description' }}
+                        </span>
+                        @if (editingDocId() === doc.id) {
+                          <input
+                            class="kb__edit-input"
+                            type="text"
+                            [ngModel]="editDocName()"
+                            (ngModelChange)="editDocName.set($event)"
+                            (keydown.enter)="saveRenameDoc(doc)"
+                            (keydown.escape)="cancelRenameDoc()"
+                          />
+                          <button
+                            type="button"
+                            class="kb__delete-btn kb__delete-btn--confirm"
+                            title="Save"
+                            [disabled]="isRenamingDoc() || !editDocName().trim()"
+                            (click)="saveRenameDoc(doc)"
+                          >
+                            <span class="material-symbols-outlined">check</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="kb__delete-btn"
+                            title="Cancel"
+                            [disabled]="isRenamingDoc()"
+                            (click)="cancelRenameDoc()"
+                          >
+                            <span class="material-symbols-outlined">close</span>
+                          </button>
+                        } @else {
+                          @if (doc.is_spreadsheet || doc.has_file) {
+                            <button
+                              type="button"
+                              class="kb__item-name kb__item-name--link"
+                              title="Download file"
+                              (click)="openDocument(doc)"
+                            >
+                              {{ doc | displayName: lang.lang() }}
+                            </button>
+                          } @else {
+                            <span class="kb__item-name">{{ doc | displayName: lang.lang() }}</span>
+                          }
+                          <span class="pill kb__status-pill {{ statusPillClass(doc.status) }}">
+                            {{ doc.status }}
+                          </span>
+                          <button
+                            type="button"
+                            class="kb__delete-btn"
+                            title="Rename document"
+                            (click)="startRenameDoc(doc)"
+                          >
+                            <span class="material-symbols-outlined">edit</span>
+                          </button>
+                          @if (doc.is_spreadsheet) {
+                            <button
+                              type="button"
+                              class="kb__delete-btn"
+                              [title]="expandedExcelDocId() === doc.id ? 'Collapse table' : 'Expand table'"
+                              (click)="toggleExcelTable(doc)"
+                            >
+                              <span class="material-symbols-outlined">
+                                {{ expandedExcelDocId() === doc.id ? 'expand_less' : 'expand_more' }}
+                              </span>
+                            </button>
+                          }
+                          <button
+                            type="button"
+                            class="kb__delete-btn"
+                            title="Delete document"
+                            [disabled]="deletingDocIds().has(doc.id)"
+                            (click)="deleteDocument(doc)"
+                          >
+                            <span class="material-symbols-outlined">delete</span>
+                          </button>
+                        }
+                      </li>
+
+                      @if (doc.is_spreadsheet && expandedExcelDocId() === doc.id) {
+                        <li class="kb__item kb__excel-panel">
+                          @if (excelTableLoading()) {
+                            <div class="kb__content-loading">
+                              <span class="kb__spinner"></span>
+                              Loading spreadsheet...
+                            </div>
+                          } @else if (excelTableError()) {
+                            <p class="error-text">{{ excelTableError() }}</p>
+                          } @else if (excelTable()) {
+                            @if (rowActionError()) {
+                              <p class="error-text kb__delete-err">{{ rowActionError() }}</p>
+                            }
+
+                            @if (visibleExcelColumns().length === 0) {
+                              <p class="kb__section-empty">This spreadsheet has no columns.</p>
+                            } @else {
+                              <div class="kb__excel-scroll">
+                                <table class="kb__excel-table">
+                                  <thead>
+                                    <tr>
+                                      @for (col of visibleExcelColumns(); track col) {
+                                        <th>{{ col }}</th>
+                                      }
+                                      <th class="kb__excel-actions-col"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    @if (visibleExcelRows().length === 0) {
+                                      <tr>
+                                        <td [attr.colspan]="visibleExcelColumns().length + 1" class="kb__section-empty">
+                                          No rows yet.
+                                        </td>
+                                      </tr>
+                                    } @else {
+                                      @for (row of visibleExcelRows(); track row.id) {
+                                        <tr>
+                                          @for (col of visibleExcelColumns(); track col) {
+                                            <td
+                                              class="kb__excel-cell"
+                                              [class.kb__excel-cell--editing]="isEditingCell(row.id, col)"
+                                              (click)="startEditCell(row, col)"
+                                            >
+                                              @if (isEditingCell(row.id, col)) {
+                                                <input
+                                                  class="kb__excel-cell-input"
+                                                  type="text"
+                                                  [ngModel]="editingCellValue()"
+                                                  (ngModelChange)="editingCellValue.set($event)"
+                                                  (blur)="saveEditCell(row)"
+                                                  (keydown.enter)="saveEditCell(row)"
+                                                  (keydown.escape)="cancelEditCell()"
+                                                  (click)="$event.stopPropagation()"
+                                                  autofocus
+                                                />
+                                              } @else {
+                                                <span class="kb__excel-cell-text">{{ row.row_data[col] }}</span>
+                                              }
+                                            </td>
+                                          }
+                                          <td class="kb__excel-actions-col">
+                                            @if (savingRowIds().has(row.id)) {
+                                              <span class="kb__spinner"></span>
+                                            } @else {
+                                              <button
+                                                type="button"
+                                                class="kb__delete-btn"
+                                                title="Delete row"
+                                                [disabled]="deletingRowIds().has(row.id)"
+                                                (click)="deleteExcelRow(row)"
+                                              >
+                                                <span class="material-symbols-outlined">delete</span>
+                                              </button>
+                                            }
+                                          </td>
+                                        </tr>
+                                      }
+                                    }
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              @if (addRowError()) {
+                                <p class="error-text kb__delete-err">{{ addRowError() }}</p>
+                              }
+
+                              <div class="kb__excel-add-row">
+                                @for (col of visibleExcelColumns(); track col) {
+                                  <input
+                                    class="kb__excel-add-input"
+                                    type="text"
+                                    [placeholder]="col"
+                                    [ngModel]="newRowValues()[col] ?? ''"
+                                    (ngModelChange)="updateNewRowValue(col, $event)"
+                                    [disabled]="isAddingRow()"
+                                  />
+                                }
+                                <button
+                                  type="button"
+                                  class="btn btn-primary"
+                                  [disabled]="isAddingRow()"
+                                  (click)="submitNewRow()"
+                                >
+                                  <span class="material-symbols-outlined">add</span>
+                                  {{ isAddingRow() ? 'Adding...' : 'Add Row' }}
+                                </button>
+                              </div>
+                            }
+                          }
+                        </li>
+                      }
+                    }
+                  </ul>
+
+                  <app-pagination
+                    [page]="filesPage()"
+                    [totalPages]="filesTotalPages()"
+                    [total]="libraryDocuments().length"
+                    itemLabel="files"
+                    (pageChange)="filesPage.set($event)"
+                  />
+                }
+              </section>
+            }
+          } @else if (librarySubTab() === 'images') {
+            <!-- Images -->
+            @if (contentLoading()) {
+              <div class="kb__content-loading">
+                <span class="kb__spinner kb__spinner--lg"></span>
+                Loading...
+              </div>
+            } @else if (contentError()) {
+              <p class="error-text">{{ contentError() }}</p>
+            } @else if (content()) {
+              @if (deleteMediaError()) {
+                <p class="error-text">{{ deleteMediaError() }}</p>
+              }
+              @if (renameMediaError()) {
+                <p class="error-text">{{ renameMediaError() }}</p>
+              }
+              <section class="kb__section">
+                <h4 class="kb__section-title">
+                  <span class="material-symbols-outlined">image</span>
+                  Images ({{ libraryImages().length }})
+                </h4>
+                @if (libraryImages().length === 0) {
+                  <p class="kb__section-empty">No images in this category yet.</p>
+                } @else {
+                  <div class="kb__video-grid">
+                    @for (item of pagedImages(); track item.id) {
+                      <div class="kb__video-card">
+                        @if (videoPreviewUrls().get(item.id); as previewUrl) {
+                          <img class="kb__video-preview" [src]="previewUrl" alt="" />
+                        } @else {
+                          <div class="kb__video-preview kb__video-preview--loading">
+                            <span class="kb__spinner kb__spinner--lg"></span>
+                          </div>
+                        }
+                        <div class="kb__video-card-body">
+                          @if (editingMediaId() === item.id) {
+                            <input
+                              class="kb__edit-input"
+                              type="text"
+                              [ngModel]="editMediaName()"
+                              (ngModelChange)="editMediaName.set($event)"
+                              (keydown.enter)="saveRenameMedia(item)"
+                              (keydown.escape)="cancelRenameMedia()"
+                            />
+                          } @else {
+                            <span class="kb__item-name">{{ item | displayName: lang.lang() }}</span>
+                          }
+                          <span class="kb__item-desc">{{ lang.lang() === 'ar' && item.description_ar ? item.description_ar : item.description }}</span>
+                        </div>
+                        @if (editingMediaId() === item.id) {
+                          <button
+                            type="button"
+                            class="kb__delete-btn kb__delete-btn--confirm"
+                            title="Save"
+                            [disabled]="isRenamingMedia() || !editMediaName().trim()"
+                            (click)="saveRenameMedia(item)"
+                          >
+                            <span class="material-symbols-outlined">check</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="kb__delete-btn"
+                            title="Cancel"
+                            [disabled]="isRenamingMedia()"
+                            (click)="cancelRenameMedia()"
+                          >
+                            <span class="material-symbols-outlined">close</span>
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="kb__delete-btn"
+                            title="Rename image"
+                            (click)="startRenameMedia(item)"
+                          >
+                            <span class="material-symbols-outlined">edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="kb__delete-btn"
+                            title="Delete image"
+                            [disabled]="deletingMediaIds().has(item.id)"
+                            (click)="deleteMedia(item)"
+                          >
+                            <span class="material-symbols-outlined">delete</span>
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
+
+                  <app-pagination
+                    [page]="imagesPage()"
+                    [totalPages]="imagesTotalPages()"
+                    [total]="libraryImages().length"
+                    itemLabel="images"
+                    (pageChange)="imagesPage.set($event)"
+                  />
+                }
+              </section>
+            }
+          } @else if (librarySubTab() === 'videos') {
+            <!-- Videos -->
+            @if (contentLoading()) {
+              <div class="kb__content-loading">
+                <span class="kb__spinner kb__spinner--lg"></span>
+                Loading...
+              </div>
+            } @else if (contentError()) {
+              <p class="error-text">{{ contentError() }}</p>
+            } @else if (content()) {
+              @if (deleteMediaError()) {
+                <p class="error-text">{{ deleteMediaError() }}</p>
+              }
+              @if (renameMediaError()) {
+                <p class="error-text">{{ renameMediaError() }}</p>
+              }
+              <section class="kb__section">
+                <h4 class="kb__section-title">
+                  <span class="material-symbols-outlined">movie</span>
+                  Videos ({{ libraryVideos().length }})
+                </h4>
+                @if (libraryVideos().length === 0) {
+                  <p class="kb__section-empty">No videos in this category yet.</p>
+                } @else {
+                  <div class="kb__video-grid">
+                    @for (item of pagedVideos(); track item.id) {
+                      <div class="kb__video-card">
+                        @if (videoPreviewUrls().get(item.id); as previewUrl) {
+                          <video class="kb__video-preview" controls [src]="previewUrl"></video>
+                        } @else {
+                          <div class="kb__video-preview kb__video-preview--loading">
+                            <span class="kb__spinner kb__spinner--lg"></span>
+                          </div>
+                        }
+                        <div class="kb__video-card-body">
+                          @if (editingMediaId() === item.id) {
+                            <input
+                              class="kb__edit-input"
+                              type="text"
+                              [ngModel]="editMediaName()"
+                              (ngModelChange)="editMediaName.set($event)"
+                              (keydown.enter)="saveRenameMedia(item)"
+                              (keydown.escape)="cancelRenameMedia()"
+                            />
+                          } @else {
+                            <span class="kb__item-name">{{ item | displayName: lang.lang() }}</span>
+                          }
+                          <span class="kb__item-desc">{{ lang.lang() === 'ar' && item.description_ar ? item.description_ar : item.description }}</span>
+                        </div>
+                        @if (editingMediaId() === item.id) {
+                          <button
+                            type="button"
+                            class="kb__delete-btn kb__delete-btn--confirm"
+                            title="Save"
+                            [disabled]="isRenamingMedia() || !editMediaName().trim()"
+                            (click)="saveRenameMedia(item)"
+                          >
+                            <span class="material-symbols-outlined">check</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="kb__delete-btn"
+                            title="Cancel"
+                            [disabled]="isRenamingMedia()"
+                            (click)="cancelRenameMedia()"
+                          >
+                            <span class="material-symbols-outlined">close</span>
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="kb__delete-btn"
+                            title="Rename video"
+                            (click)="startRenameMedia(item)"
+                          >
+                            <span class="material-symbols-outlined">edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="kb__delete-btn"
+                            title="Delete video"
+                            [disabled]="deletingMediaIds().has(item.id)"
+                            (click)="deleteMedia(item)"
+                          >
+                            <span class="material-symbols-outlined">delete</span>
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
+
+                  <app-pagination
+                    [page]="videosPage()"
+                    [totalPages]="videosTotalPages()"
+                    [total]="libraryVideos().length"
+                    itemLabel="videos"
+                    (pageChange)="videosPage.set($event)"
+                  />
+                }
+              </section>
+            }
+          } @else if (librarySubTab() === 'links') {
+            <!-- Links -->
+            @if (contentLoading()) {
+              <div class="kb__content-loading">
+                <span class="kb__spinner kb__spinner--lg"></span>
+                Loading...
+              </div>
+            } @else if (contentError()) {
+              <p class="error-text">{{ contentError() }}</p>
+            } @else if (content()) {
+              @if (deleteMediaError()) {
+                <p class="error-text">{{ deleteMediaError() }}</p>
+              }
+              @if (renameMediaError()) {
+                <p class="error-text">{{ renameMediaError() }}</p>
+              }
+              <section class="kb__section">
+                <h4 class="kb__section-title">
+                  <span class="material-symbols-outlined">link</span>
+                  Links ({{ libraryLinks().length }})
+                </h4>
+                @if (libraryLinks().length === 0) {
+                  <p class="kb__section-empty">No links in this category yet.</p>
+                } @else {
+                  <div class="kb__link-grid">
+                    @for (item of pagedLinks(); track item.id) {
+                      <div class="kb__link-card">
+                        @if (item.link_type === 'youtube' && youtubeEmbedUrl(item.url); as embedUrl) {
+                          <iframe
+                            class="kb__link-embed"
+                            [src]="embedUrl"
+                            title="video"
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen
+                          ></iframe>
+                        } @else {
+                          <a
+                            class="kb__link-open"
+                            [href]="item.url ?? ''"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <span class="material-symbols-outlined">open_in_new</span>
+                            Open link
+                          </a>
+                        }
+                        <div class="kb__link-card-body">
+                          @if (editingMediaId() === item.id) {
+                            <input
+                              class="kb__edit-input"
+                              type="text"
+                              [ngModel]="editMediaName()"
+                              (ngModelChange)="editMediaName.set($event)"
+                              (keydown.enter)="saveRenameMedia(item)"
+                              (keydown.escape)="cancelRenameMedia()"
+                            />
+                          } @else {
+                            <span class="kb__item-name">{{ item | displayName: lang.lang() }}</span>
+                          }
+                          <span class="kb__item-desc">{{ lang.lang() === 'ar' && item.description_ar ? item.description_ar : item.description }}</span>
+
+                          <div class="kb__link-card-footer">
+                            <span class="pill pill-info kb__type-badge">{{ linkTypeLabel(item.link_type) }}</span>
+                            <div class="kb__link-card-actions">
+                              @if (editingMediaId() === item.id) {
+                                <button
+                                  type="button"
+                                  class="kb__delete-btn kb__delete-btn--confirm"
+                                  title="Save"
+                                  [disabled]="isRenamingMedia() || !editMediaName().trim()"
+                                  (click)="saveRenameMedia(item)"
+                                >
+                                  <span class="material-symbols-outlined">check</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  class="kb__delete-btn"
+                                  title="Cancel"
+                                  [disabled]="isRenamingMedia()"
+                                  (click)="cancelRenameMedia()"
+                                >
+                                  <span class="material-symbols-outlined">close</span>
+                                </button>
+                              } @else {
+                                <button
+                                  type="button"
+                                  class="kb__delete-btn"
+                                  title="Rename link"
+                                  (click)="startRenameMedia(item)"
+                                >
+                                  <span class="material-symbols-outlined">edit</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  class="kb__delete-btn"
+                                  title="Delete link"
+                                  [disabled]="deletingMediaIds().has(item.id)"
+                                  (click)="deleteMedia(item)"
+                                >
+                                  <span class="material-symbols-outlined">delete</span>
+                                </button>
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+
+                  <app-pagination
+                    [page]="linksPage()"
+                    [totalPages]="linksTotalPages()"
+                    [total]="libraryLinks().length"
+                    itemLabel="links"
+                    (pageChange)="linksPage.set($event)"
+                  />
+                }
+              </section>
+            }
+          } @else {
+            <!-- Questions -->
+            @if (addQuestionError()) {
+              <p class="error-text">{{ addQuestionError() }}</p>
+            }
+            @if (deleteQuestionError()) {
+              <p class="error-text">{{ deleteQuestionError() }}</p>
+            }
+            @if (editQuestionError()) {
+              <p class="error-text">{{ editQuestionError() }}</p>
+            }
+
+            <section class="kb__section">
+              <h4 class="kb__section-title">
+                <span class="material-symbols-outlined">help</span>
+                Suggested Questions ({{ suggestedQuestions().length }})
+              </h4>
+
+              @if (sqLoading()) {
+                <div class="kb__content-loading">
+                  <span class="kb__spinner"></span>
+                  Loading...
+                </div>
+              } @else if (sqError()) {
+                <p class="error-text">{{ sqError() }}</p>
+              } @else if (suggestedQuestions().length === 0) {
+                <p class="kb__section-empty">No suggested questions yet.</p>
+              } @else {
+                <ul class="kb__item-list">
+                  @for (q of pagedSuggestedQuestions(); track q.id) {
+                    <li class="kb__item" [class.kb__item--top]="editingQuestionId() === q.id">
+                      @if (editingQuestionId() === q.id) {
+                        <span class="material-symbols-outlined kb__item-icon">help</span>
+                        <div class="kb__sq-edit-fields">
+                          <input
+                            class="kb__edit-input"
+                            type="text"
+                            placeholder="Question"
+                            [ngModel]="editQuestionText()"
+                            (ngModelChange)="editQuestionText.set($event)"
+                            (keydown.escape)="cancelEditQuestion()"
+                          />
+                          <textarea
+                            class="kb__sq-answer-input"
+                            rows="2"
+                            placeholder="Answer (optional)"
+                            [ngModel]="editAnswerText()"
+                            (ngModelChange)="editAnswerText.set($event)"
+                            (keydown.escape)="cancelEditQuestion()"
+                          ></textarea>
+                          <p class="kb__sq-hint">Leave empty to let the AI answer.</p>
+                        </div>
+                        <button
+                          type="button"
+                          class="kb__delete-btn kb__delete-btn--confirm"
+                          title="Save"
+                          [disabled]="isSavingQuestion() || !editQuestionText().trim()"
+                          (click)="saveEditQuestion(q)"
+                        >
+                          <span class="material-symbols-outlined">check</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="kb__delete-btn"
+                          title="Cancel"
+                          [disabled]="isSavingQuestion()"
+                          (click)="cancelEditQuestion()"
+                        >
+                          <span class="material-symbols-outlined">close</span>
+                        </button>
+                      } @else {
+                        <span class="material-symbols-outlined kb__item-icon">help</span>
+                        <div class="kb__item-body">
+                          <span class="kb__item-name">{{ displayQuestion(q) }}</span>
+                          @if (q.answer) {
+                            <span class="kb__item-desc">{{ displayAnswer(q) }}</span>
+                          } @else {
+                            <span class="kb__item-desc kb__item-desc--ai">
+                              <span class="material-symbols-outlined kb__sq-ai-icon">auto_awesome</span>
+                              Answered by AI
+                            </span>
+                          }
+                        </div>
+                        <button
+                          type="button"
+                          class="kb__delete-btn"
+                          title="Edit question"
+                          (click)="startEditQuestion(q)"
+                        >
+                          <span class="material-symbols-outlined">edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="kb__delete-btn"
+                          title="Delete question"
+                          [disabled]="deletingQuestionIds().has(q.id)"
+                          (click)="deleteSuggestedQuestion(q)"
+                        >
+                          <span class="material-symbols-outlined">delete</span>
+                        </button>
+                      }
+                    </li>
+                  }
+                </ul>
+
+                <app-pagination
+                  [page]="sqPage()"
+                  [totalPages]="sqTotalPages()"
+                  [total]="suggestedQuestions().length"
+                  itemLabel="questions"
+                  (pageChange)="sqPage.set($event)"
+                />
+              }
+            </section>
+          }
+        }
+      </div>
+    }
+  </main>
+</div>

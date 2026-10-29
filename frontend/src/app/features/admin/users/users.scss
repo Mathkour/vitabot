@@ -1,0 +1,381 @@
+.users {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.users__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.users__subtext {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 6px 0 0;
+}
+
+.users__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.users__add-btn {
+  flex-shrink: 0;
+}
+
+.users__import-btn {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.users__import-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+
+.users__import-result {
+  width: fit-content;
+}
+
+.users__pill-icon {
+  font-size: 16px;
+}
+
+/* ── Existing-users search + list ────────────────────────────── */
+
+.users__search-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.users__search-icon {
+  position: absolute;
+  inset-inline-start: 12px;
+  font-size: 18px;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.users__search-input {
+  width: 100%;
+  max-width: 320px;
+  font-family: inherit;
+  font-size: 13px;
+  padding-block: 10px;
+  padding-inline: 38px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-info-bg);
+  }
+}
+
+.users__company-filter {
+  margin-inline-start: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+
+  &:focus {
+    border-color: var(--color-accent);
+  }
+}
+
+.users__company-cell-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  .material-symbols-outlined {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  &:hover {
+    border-color: var(--color-border);
+    background: var(--color-bg);
+
+    .material-symbols-outlined {
+      opacity: 1;
+    }
+  }
+}
+
+.users__company-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.users__company-edit-select {
+  // app-dropdown-select is self-styled (see shared/dropdown-select) — this
+  // just constrains its width inside the table cell instead of the
+  // component's own default 100%.
+  width: 160px;
+  flex-shrink: 0;
+  outline: none;
+}
+
+.users__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+
+  .material-symbols-outlined {
+    font-size: 16px;
+  }
+
+  &:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.users__table-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.users__delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+
+  .material-symbols-outlined {
+    font-size: 16px;
+  }
+
+  &:hover {
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+  }
+}
+
+.users__list-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.users__list-empty {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  padding: 20px;
+}
+
+.users__table-email {
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+/* ── Table (used by the import preview) ─────────────────────── */
+
+.users__table-wrap {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.users__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    text-align: start;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    z-index: 1;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: var(--color-bg);
+  }
+
+  td {
+    color: var(--color-text);
+    font-weight: 500;
+  }
+
+  .pill {
+    text-transform: capitalize;
+  }
+}
+
+.users__list-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 20px;
+}
+
+.users__spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: users-spin 0.7s linear infinite;
+}
+
+@keyframes users-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Add User modal ──────────────────────────────────────── */
+
+.users__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 21, 48, 0.55);
+  padding: 16px;
+  animation: users-fade-in 0.15s ease;
+}
+
+@keyframes users-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.users__modal {
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: users-pop-in 0.15s ease;
+}
+
+@keyframes users-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.users__modal-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.users__error {
+  margin: 16px 0 0;
+}
+
+.users__form {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.users__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ── Import from Excel modal ────────────────────────────────── */
+
+.users__import-modal {
+  max-width: 640px;
+}
+
+.users__import-mapping {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 14px;
+  border-radius: var(--radius-control);
+  background: var(--color-bg);
+}
+
+.users__import-mapping-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.users__import-mapping-label {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.users__import-preview-wrap {
+  max-height: 240px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  margin-bottom: 8px;
+}

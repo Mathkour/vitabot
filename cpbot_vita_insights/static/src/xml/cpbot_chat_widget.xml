@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="cpbot_vita_insights.ChatWidget" owl="1">
+        <div class="o_cpbot_chat_widget">
+            <div class="o_cpbot_header">
+                <span class="o_cpbot_header_title">Vita Insights</span>
+            </div>
+
+            <t t-if="state.configError">
+                <div class="o_cpbot_banner o_cpbot_banner_error" role="alert">
+                    <t t-esc="state.configError"/>
+                </div>
+            </t>
+
+            <div class="o_cpbot_messages" t-ref="messagesContainer">
+                <t t-if="state.configReady and !state.messages.length and !state.configError">
+                    <div class="o_cpbot_empty_state">
+                        Ask Vita Insights a question in English or Arabic to get started.
+                    </div>
+                </t>
+
+                <t t-foreach="state.messages" t-as="message" t-key="message_index">
+                    <div t-attf-class="o_cpbot_message o_cpbot_message_{{message.role}}">
+                        <div class="o_cpbot_bubble" dir="auto">
+                            <span t-esc="message.content"/>
+                        </div>
+
+                        <t t-if="message.chart">
+                            <div class="o_cpbot_chart_table_wrapper">
+                                <table class="o_cpbot_chart_table">
+                                    <thead>
+                                        <tr>
+                                            <th>Label</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="message.chart.labels || []" t-as="label" t-key="label_index">
+                                            <tr>
+                                                <td dir="auto"><t t-esc="label"/></td>
+                                                <td><t t-esc="(message.chart.data || [])[label_index]"/></td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </t>
+                    </div>
+                </t>
+
+                <t t-if="state.loading">
+                    <div class="o_cpbot_message o_cpbot_message_assistant">
+                        <div class="o_cpbot_bubble o_cpbot_loading">
+                            <span class="o_cpbot_spinner" role="status"/>
+                            <span>Thinking…</span>
+                        </div>
+                    </div>
+                </t>
+            </div>
+
+            <t t-if="state.error">
+                <div class="o_cpbot_banner o_cpbot_banner_error" role="alert">
+                    <t t-esc="state.error"/>
+                </div>
+            </t>
+
+            <div class="o_cpbot_input_row">
+                <textarea
+                    class="o_cpbot_input"
+                    dir="auto"
+                    rows="1"
+                    placeholder="Type your question…"
+                    t-att-disabled="state.loading || !!state.configError"
+                    t-on-input="onInputChange"
+                    t-on-keydown="onInputKeydown"
+                    t-att-value="state.inputText"
+                />
+                <button
+                    type="button"
+                    class="o_cpbot_send_button"
+                    t-att-disabled="state.loading || !!state.configError || !state.inputText.trim()"
+                    t-on-click="sendMessage"
+                >
+                    Send
+                </button>
+            </div>
+        </div>
+    </t>
+
+</templates>

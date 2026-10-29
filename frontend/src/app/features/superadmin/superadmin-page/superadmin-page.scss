@@ -1,0 +1,220 @@
+.superadmin {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+  width: 100%;
+}
+
+.superadmin__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.superadmin__subtext {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 6px 0 0;
+}
+
+.superadmin__success {
+  width: fit-content;
+}
+
+.superadmin__pill-icon {
+  font-size: 16px;
+}
+
+/* ── Table ───────────────────────────────────────────────── */
+
+.superadmin__table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.superadmin__table-wrap {
+  max-height: 560px;
+  overflow-y: auto;
+}
+
+.superadmin__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    text-align: start;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    z-index: 1;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: var(--color-bg);
+  }
+
+  td {
+    color: var(--color-text);
+    font-weight: 500;
+  }
+}
+
+.superadmin__name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.superadmin__logo-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: var(--color-bg);
+}
+
+.superadmin__logo-placeholder {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.superadmin__name-text {
+  font-weight: 600;
+}
+
+.superadmin__swatches {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.superadmin__swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.superadmin__created-cell {
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.superadmin__enter-btn {
+  white-space: nowrap;
+}
+
+.superadmin__list-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 20px;
+}
+
+.superadmin__list-empty {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  padding: 20px;
+}
+
+.superadmin__spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: superadmin-spin 0.7s linear infinite;
+}
+
+@keyframes superadmin-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Create Company modal ───────────────────────────────────── */
+
+.superadmin__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 21, 48, 0.55);
+  padding: 16px;
+  animation: superadmin-fade-in 0.15s ease;
+}
+
+@keyframes superadmin-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.superadmin__modal {
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: superadmin-pop-in 0.15s ease;
+}
+
+@keyframes superadmin-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.superadmin__modal-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.superadmin__error {
+  margin: 16px 0 0;
+}
+
+.superadmin__form {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.superadmin__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
