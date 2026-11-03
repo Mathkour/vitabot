@@ -19,8 +19,8 @@ _logger = logging.getLogger(__name__)
 # left blank — see _config_url() below. Not secrets, so it's fine for these
 # to be hardcoded; they're just the values this module ships with until an
 # admin overrides them per instance without needing a new module release.
-DEFAULT_BACKEND_SSO_URL = "https://cpbot-staging.onrender.com/auth/odoo-sso"
-DEFAULT_FRONTEND_SSO_LOGIN_URL = "https://cpbot-frontend.onrender.com/sso-login"
+DEFAULT_BACKEND_SSO_URL = "https://vitabot.vitacareonline.com/api/auth/odoo-sso"
+DEFAULT_FRONTEND_SSO_LOGIN_URL = "https://vitabot.vitacareonline.com/sso-login"
 DEFAULT_COMPANY_DOMAIN = "vitacareonline.com"
 
 # The shared secret is NOT hardcoded here — a value baked into this .py

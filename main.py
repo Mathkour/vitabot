@@ -712,9 +712,9 @@ async def odoo_sso(
                 # lookup, so this can't hijack an already-migrated account.
                 user = await conn.fetchrow(
                     "SELECT id, tenant_id, role, username, token_version FROM users "
-                    "WHERE tenant_id = $1 AND LOWER(email) = LOWER($2) AND odoo_identity IS NULL",
-                    tenant_id, body.email,
-                )
+               "WHERE tenant_id = $1 AND LOWER(email) = LOWER($2) AND odoo_identity IS NULL "
+                    "AND company_id IS NOT DISTINCT FROM $3",
+                    tenant_id, body.email, company_id )
                 if user is not None:
                     await conn.execute(
                         "UPDATE users SET odoo_identity = $1, odoo_client_key = $2 WHERE id = $3",

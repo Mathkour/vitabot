@@ -1,6 +1,6 @@
 {
     'name': 'Vita Bot Link',
-    'version': '15.0.1.0.7',
+    'version': '15.0.1.0.8',
     'category': 'Productivity',
     'summary': 'Adds a Vita Bot app icon that single-sign-on launches the Vita Care chatbot',
     'description': """
