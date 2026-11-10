@@ -1,3 +1,8 @@
+# Keeps `str | None`-style annotations from being evaluated at import time:
+# Odoo 15 commonly runs on Python 3.8/3.9, where that syntax raises
+# TypeError the moment this module is imported.
+from __future__ import annotations
+
 import hashlib
 import hmac
 import logging
@@ -118,6 +123,17 @@ SSO_REJECTED_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
+SSO_UNEXPECTED_ERROR_HTML = """<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Vita Bot</title></head>
+<body style="font-family: sans-serif; text-align: center; padding: 80px 20px; color: #333;">
+  <h2>Vita Bot is temporarily unavailable</h2>
+  <p>Something went wrong opening Vita Bot. The rest of Odoo is not affected.
+  Please try again later, or ask an administrator to check the Odoo server log.</p>
+  <p><a href="/web">Back to Odoo</a></p>
+</body>
+</html>"""
+
 
 def _config_url(param: str, default: str) -> str:
     """Reads an admin-overridable URL from Settings > General Settings >
@@ -155,18 +171,40 @@ def _sign_sso_request(secret: str, client_key, odoo_user_id: int, email: str, us
     return hmac.new(secret.encode(), canonical.encode(), hashlib.sha256).hexdigest()
 
 
-def _extract_company_slug_from_host(company_domain: str) -> str | None:
-    """test-life.vitacareonline.com -> "test-life". None if the current
-    request's host doesn't end with company_domain at all (e.g. Vita
-    Care's own internal Odoo, or a bare/unexpected host during local dev) —
-    callers should treat None as "don't touch company grouping", not as an
-    empty slug to resolve."""
-    host = request.httprequest.host.split(":")[0].lower()  # drop a :port if present
+def _slug_from_host(host: str, company_domain: str) -> str | None:
+    host = (host or "").split(":")[0].strip().lower()  # drop a :port if present
     suffix = f".{company_domain.lower().lstrip('.')}"
     if not host.endswith(suffix):
         return None
     slug = host[: -len(suffix)]
     return slug or None
+
+
+def _extract_company_slug_from_host(company_domain: str) -> str | None:
+    """test-life.vitacareonline.com -> "test-life". None if neither the
+    current request's host nor this instance's web.base.url ends with
+    company_domain (e.g. Vita Care's own internal Odoo, or local dev) —
+    callers should treat None as "don't touch company grouping", not as an
+    empty slug to resolve.
+
+    The request host alone isn't enough: behind a reverse proxy that doesn't
+    forward the public Host (or with Odoo's proxy_mode off), Odoo sees the
+    internal address (127.0.0.1:8069, odoo:8069, ...) and the slug was
+    silently lost — users then got created without a company. web.base.url
+    is the public URL Odoo stores server-side (updated when an admin logs in
+    through it), so it's the fallback; it isn't client-controlled."""
+    slug = _slug_from_host(request.httprequest.host, company_domain)
+    if slug:
+        return slug
+    base_url = request.env["ir.config_parameter"].sudo().get_param("web.base.url") or ""
+    slug = _slug_from_host(urlparse(base_url).netloc, company_domain)
+    if not slug:
+        _logger.warning(
+            "Vita Bot SSO: no company slug — neither request host %r nor web.base.url %r ends with .%s; "
+            "the user will be signed in without a company",
+            request.httprequest.host, base_url, company_domain.lstrip("."),
+        )
+    return slug
 
 
 def _back_to_odoo_url() -> str:
@@ -202,7 +240,18 @@ class CpbotVitaBotSSOController(http.Controller):
         auth="user" means Odoo itself bounces anonymous visitors to
         /web/login first, so request.env.user here is always a real,
         already-authenticated Odoo user.
+
+        Any unexpected error is caught here and shown as a plain error page,
+        so a bug in this flow can only ever affect this one click — never
+        Odoo's own pages or other users.
         """
+        try:
+            return self._vita_bot_sso(attempt)
+        except Exception:
+            _logger.exception("Vita Bot SSO: unexpected error")
+            return Response(SSO_UNEXPECTED_ERROR_HTML, status=500, content_type="text/html")
+
+    def _vita_bot_sso(self, attempt):
         try:
             attempt_num = int(attempt)
         except ValueError:
