@@ -22,6 +22,8 @@ scripts/
 
 *.md
 *.sql
+# Applied automatically on startup (services/migrations.py), so they must be in the image.
+!migrations/*.sql
 *.zip
 backup.sql
 google-tts-key.json

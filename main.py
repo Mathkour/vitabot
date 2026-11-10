@@ -44,6 +44,7 @@ from routers.unanswered_questions import (
 )
 from services.document_index import extract_index_pages, index_document_pages, split_txt_into_chunks
 import time
+from services.migrations import apply_pending_migrations
 from loguru import logger
 import re
 from pydantic import BaseModel , EmailStr
@@ -52,6 +53,8 @@ from pydantic import BaseModel , EmailStr
 @asynccontextmanager
 async def lifespan(app:FastAPI):
     await db.init_pool()
+    # Applies migrations/*.sql not applied yet; never blocks startup.
+    await apply_pending_migrations(db.pool)
     yield
     await db.close_pool()
 
