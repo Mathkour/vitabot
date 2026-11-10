@@ -37,16 +37,6 @@
           <span class="topbar__quick-link-label">{{ lang.translate('nav.videos') }}</span>
         </button>
       }
-      @if (showDocumentIndex()) {
-        <button type="button" class="topbar__quick-link" routerLink="/document-index">
-          <span class="material-symbols-outlined">manage_search</span>
-          <span class="topbar__quick-link-label">{{ lang.translate('nav.documentIndex') }}</span>
-        </button>
-        <button type="button" class="topbar__quick-link" routerLink="/ask-ai">
-          <span class="material-symbols-outlined">auto_awesome</span>
-          <span class="topbar__quick-link-label">{{ lang.translate('nav.askAi') }}</span>
-        </button>
-      }
     </div>
   }
   <div class="topbar__spacer"></div>

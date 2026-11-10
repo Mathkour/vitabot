@@ -3,7 +3,6 @@ import { adminGuard } from './core/guards/admin.guard';
 import { authGuard } from './core/guards/auth.guard';
 import { companyAdminGuard } from './core/guards/company-admin.guard';
 import { guestGuard } from './core/guards/guest.guard';
-import { housingBankTenantGuard } from './core/guards/housing-bank-tenant.guard';
 import { memberGuard } from './core/guards/member.guard';
 import { odooAccessGuard } from './core/guards/odoo-access.guard';
 import { sharedPageGuard } from './core/guards/shared-page.guard';
@@ -26,13 +25,6 @@ export const routes: Routes = [
     path: 'sso-login',
     loadComponent: () =>
       import('./features/auth/sso-login/sso-login').then((m) => m.SsoLoginPage),
-  },
-  {
-    // Embedded-widget chat: public, no guard — it authenticates itself from
-    // the partner JWT in the URL fragment (see WidgetChat).
-    path: 'widget-chat',
-    loadComponent: () =>
-      import('./features/widget-chat/widget-chat').then((m) => m.WidgetChat),
   },
   {
     path: 'access-denied',
@@ -85,7 +77,7 @@ export const routes: Routes = [
         // company_admin here — they manage users, not the companies
         // themselves). Gated to Vita Care on the backend
         // (require_vita_care_admin); the sidebar link is hidden for every
-        // other tenant, same pattern as vita-insights/document-index.
+        // other tenant, same pattern as vita-insights.
         path: 'companies',
         canActivate: [adminGuard],
         loadComponent: () =>
@@ -236,23 +228,6 @@ export const routes: Routes = [
           import('./features/admin/vita-insights/vita-insights').then(
             (m) => m.VitaInsights,
           ),
-      },
-      {
-        // Shared with the old /admin/document-index.
-        path: 'document-index',
-        canActivate: [sharedPageGuard, housingBankTenantGuard],
-        loadComponent: () =>
-          import('./features/admin/document-index/document-index').then(
-            (m) => m.DocumentIndex,
-          ),
-      },
-      {
-        // AI-generated answers built only from the Document Index's own
-        // files (never invented) — same tenant gating as document-index.
-        path: 'ask-ai',
-        canActivate: [sharedPageGuard, housingBankTenantGuard],
-        loadComponent: () =>
-          import('./features/admin/ask-ai/ask-ai').then((m) => m.AskAi),
       },
       {
         // Member-only FAQ *viewer* — distinct component from the admin FAQ

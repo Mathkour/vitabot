@@ -38,26 +38,5 @@
         <span class="sidebar__label">{{ lang.translate('nav.vitaInsights') }}</span>
       </a>
     }
-
-    @if (showDocumentIndex()) {
-      <a
-        class="sidebar__link"
-        routerLink="/document-index"
-        routerLinkActive="sidebar__link--active"
-        (click)="linkActivated.emit()"
-      >
-        <span class="material-symbols-outlined sidebar__icon">manage_search</span>
-        <span class="sidebar__label">{{ lang.translate('nav.documentIndex') }}</span>
-      </a>
-      <a
-        class="sidebar__link"
-        routerLink="/ask-ai"
-        routerLinkActive="sidebar__link--active"
-        (click)="linkActivated.emit()"
-      >
-        <span class="material-symbols-outlined sidebar__icon">auto_awesome</span>
-        <span class="sidebar__label">{{ lang.translate('nav.askAi') }}</span>
-      </a>
-    }
   </nav>
 </aside>

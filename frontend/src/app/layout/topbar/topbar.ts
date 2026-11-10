@@ -8,7 +8,6 @@ import { SupportTicketsService } from '../../core/services/support-tickets.servi
 import { TenantThemeService } from '../../core/services/tenant-theme.service';
 import { ThemeService } from '../../core/services/theme.service';
 
-const HOUSING_BANK_TENANT_NAME = 'Housing Bank';
 const VITA_CARE_TENANT_NAME = 'Vita Care';
 const UNSEEN_TICKETS_POLL_MS = 45000;
 
@@ -53,15 +52,8 @@ export class Topbar implements OnInit, OnDestroy {
     () => !this.auth.isAdmin() && !this.auth.isSuperadmin() && !this.auth.isCompanyAdmin(),
   );
 
-  // Document Index ("الفهرس") — Housing Bank only, same tenant-name-gated
-  // quick-link pattern as Ask Odoo above (regular users have no sidebar,
-  // so this topbar quick-link is how they reach it under /chat).
-  readonly showDocumentIndex = computed(
-    () => this.tenantTheme.tenantName() === HOUSING_BANK_TENANT_NAME,
-  );
-
   // End-user video library ("الفيديوهات") — Vita Care only, same
-  // topbar-quick-link pattern as Document Index above (regular users have
+  // topbar-quick-link pattern as Ask Odoo above (regular users have
   // no sidebar, so this is how they reach it under /chat). The /videos
   // route is memberGuard-gated (admin/superadmin/company_admin all denied,
   // same as /faq), so the link is hidden for those roles rather than

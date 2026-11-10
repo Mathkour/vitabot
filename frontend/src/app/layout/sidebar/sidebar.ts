@@ -16,7 +16,6 @@ interface NavItem {
 }
 
 const VITA_CARE_TENANT_NAME = 'Vita Care';
-const HOUSING_BANK_TENANT_NAME = 'Housing Bank';
 
 const FULL_ADMIN_NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.knowledgeBase', route: '/knowledge-base', icon: 'auto_stories' },
@@ -74,12 +73,9 @@ export class Sidebar implements OnInit, OnDestroy {
       !this.authService.isCompanyAdmin() &&
       this.odooAccess.allowed(),
   );
-  readonly showDocumentIndex = computed(
-    () => this.tenantTheme.tenantName() === HOUSING_BANK_TENANT_NAME && !this.authService.isCompanyAdmin(),
-  );
   // Companies feature is schema-generic but only wired up for Vita Care for
   // now (see require_vita_care_admin on the backend) — same gating pattern
-  // as the two above. Tenant admin only, never a company_admin.
+  // as Ask Odoo above. Tenant admin only, never a company_admin.
   readonly showCompanies = computed(
     () => this.tenantTheme.tenantName() === VITA_CARE_TENANT_NAME && !this.authService.isCompanyAdmin(),
   );

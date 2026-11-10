@@ -3,7 +3,6 @@ import { Injector, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
-import { WidgetSessionService } from '../services/widget-session.service';
 
 /**
  * The access token lives in an httpOnly cookie set by the backend, so it's
@@ -48,23 +47,10 @@ import { WidgetSessionService } from '../services/widget-session.service';
  * inject(), has no "must run synchronously in an injection context"
  * restriction, so calling it later (after AuthService has long finished
  * constructing) sidesteps the cycle entirely.
- *
- * `/widget/*` calls and, once a widget session exists, every other request
- * made from inside the widget iframe must NOT get withCredentials here: the
- * widget never uses cookies (see WidgetSessionService — Bearer-only,
- * in-memory token), and widget_cors_middleware (routers/widget.py)
- * deliberately never returns Access-Control-Allow-Credentials for /widget/*
- * responses. A credentialed request against a response with no ACAC header
- * is unconditionally rejected by the browser's CORS enforcement — this was
- * happening for every widget request until this check was added, found via
- * a live browser test (Playwright) of the widget's suggested-questions
- * feature, which never even got past /widget/config.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const injector = inject(Injector);
-  const isWidgetRequest = req.url.includes('/widget/') || !!injector.get(WidgetSessionService).token;
-
-  return next(isWidgetRequest ? req : req.clone({ withCredentials: true })).pipe(
+  return next(req.clone({ withCredentials: true })).pipe(
     catchError((err: unknown) => {
       // /sso-login is actively exchanging a brand-new SSO token for a fresh
       // session (see sso-login.ts). A 401 from some unrelated request still

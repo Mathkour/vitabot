@@ -57,8 +57,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'unanswered.couldNotSave': 'Could not save the answer.',
     'unanswered.couldNotUpdate': 'Could not update the question.',
     'unanswered.itemLabel': 'questions',
-    'nav.documentIndex': 'Index',
-    'nav.askAi': 'Ask AI',
     'nav.videos': 'Videos',
     'nav.supportTickets': 'Support Tickets',
 
@@ -527,25 +525,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'companies.deleteTitle': 'Delete company?',
     'companies.deleteMessage': '"{name}" will be deleted. Its users will stay, just unassigned from any company.',
 
-    // Document Index ("الفهرس") — Housing Bank only
-    'documentIndex.title': 'Index',
-    'documentIndex.subtitle': 'Search across all uploaded index documents.',
-    'documentIndex.searchPlaceholder': 'Search for a word or phrase...',
-    'documentIndex.search': 'Search',
-    'documentIndex.noResults': 'No matches found.',
-    'documentIndex.searchError': 'Could not run this search. Please try again.',
-    'documentIndex.pageLoadError': 'Could not load this page.',
-    'documentIndex.page': 'Page',
-    'documentIndex.slide': 'Slide',
-    'askAi.title': 'Ask AI',
-    'askAi.subtitle': 'Ask a question and get an AI-generated answer based only on the indexed documents.',
-    'askAi.placeholder': 'Type your question...',
-    'askAi.ask': 'Ask',
-    'askAi.asking': 'Thinking...',
-    'askAi.error': 'Could not get an answer. Please try again.',
-    'askAi.sourcesLabel': 'Sources:',
-    'askAi.emptyPrompt': 'Ask a question about the indexed documents to get started.',
-
     // Acting banner
     'actingBanner.label': 'Acting as:',
     'actingBanner.exit': 'Exit',
@@ -620,8 +599,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'unanswered.couldNotSave': 'تعذر حفظ الإجابة.',
     'unanswered.couldNotUpdate': 'تعذر تحديث السؤال.',
     'unanswered.itemLabel': 'أسئلة',
-    'nav.documentIndex': 'الفهرس',
-    'nav.askAi': 'اسأل الذكاء الاصطناعي',
     'nav.videos': 'الفيديوهات',
     'nav.supportTickets': 'تذاكر الدعم',
 
@@ -1090,25 +1067,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'companies.colUserCount': 'المستخدمون',
     'companies.deleteTitle': 'حذف الشركة؟',
     'companies.deleteMessage': 'رح تنحذف "{name}". مستخدميها رح يضلوا موجودين، بس بدون شركة.',
-
-    // Document Index ("الفهرس") — Housing Bank only
-    'documentIndex.title': 'الفهرس',
-    'documentIndex.subtitle': 'البحث ضمن جميع مستندات الفهرس المرفوعة.',
-    'documentIndex.searchPlaceholder': 'ابحث عن كلمة أو عبارة...',
-    'documentIndex.search': 'بحث',
-    'documentIndex.noResults': 'لا توجد نتائج مطابقة.',
-    'documentIndex.searchError': 'تعذر تنفيذ البحث. يرجى المحاولة مرة أخرى.',
-    'documentIndex.pageLoadError': 'تعذر تحميل هذه الصفحة.',
-    'documentIndex.page': 'صفحة',
-    'documentIndex.slide': 'شريحة',
-    'askAi.title': 'اسأل الذكاء الاصطناعي',
-    'askAi.subtitle': 'اسأل سؤالك وبيجاوبك الذكاء الاصطناعي بناءً فقط على المستندات المفهرسة.',
-    'askAi.placeholder': 'اكتب سؤالك...',
-    'askAi.ask': 'اسأل',
-    'askAi.asking': 'عم يفكر...',
-    'askAi.error': 'تعذر الحصول على جواب. يرجى المحاولة مرة أخرى.',
-    'askAi.sourcesLabel': 'المصادر:',
-    'askAi.emptyPrompt': 'اسأل أي سؤال عن المستندات المفهرسة للبدء.',
 
     // Acting banner
     'actingBanner.label': 'الدخول كـ:',

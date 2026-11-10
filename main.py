@@ -14,7 +14,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from core.security import hash_password
 from core.security import hash_password,verify_password,ALGO,create_access_token,decode_access_token,set_auth_cookie,clear_auth_cookie,ACCESS_TOKEN_COOKIE_NAME
-from core.auth import get_current_tenant , get_current_user_id , get_current_role , require_superadmin , require_admin ,require_vita_care_tenant , VITA_CARE_TENANT_ID , is_housing_bank_tenant , require_admin_or_company_admin , UserScope
+from core.auth import get_current_tenant , get_current_user_id , get_current_role , require_superadmin , require_admin ,require_vita_care_tenant , VITA_CARE_TENANT_ID , require_admin_or_company_admin , UserScope
 from services.import_users import parse_excel, detect_mapping
 from services.extraction import extract_text,extract_slides_from_pptx
 from services.chunking import chunck_text
@@ -33,8 +33,6 @@ from services import odoo_service
 from services import storage
 from services.odoo_agent import odoo_agent_ask
 from routers.ai_monitoring import router as ai_monitoring_router
-from routers.document_index import router as document_index_router
-from routers.widget import router as widget_router, widget_cors_middleware
 from routers.faq_categories import router as faq_categories_router, validate_category_id
 from routers.tenant_analytics import router as tenant_analytics_router
 from routers.companies import router as companies_router
@@ -42,7 +40,6 @@ from routers.support_tickets import router as support_tickets_router
 from routers.unanswered_questions import (
     router as unanswered_questions_router, record_unanswered_question, ANSWERS_DOC_FILENAME,
 )
-from services.document_index import extract_index_pages, index_document_pages, split_txt_into_chunks
 import time
 from services.migrations import apply_pending_migrations
 from loguru import logger
@@ -141,7 +138,7 @@ _cors_allowed_origins = (
 )
 _cors_allowed_origin_regex = os.getenv(
     "CORS_ALLOWED_ORIGIN_REGEX",
-    r"https://([a-z0-9-]+\.)*(credit-plus\.me|onrender\.com|vitacareonline\.com)",
+    r"https://([a-z0-9-]+\.)*vitacareonline\.com",
 )
 
 app.add_middleware(
@@ -153,13 +150,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Registered after CORSMiddleware so it wraps it: for /widget/* it decides
-# the CORS headers itself (partner origins from WIDGET_ALLOWED_ORIGINS).
-app.middleware("http")(widget_cors_middleware)
-
 app.include_router(ai_monitoring_router)
-app.include_router(document_index_router)
-app.include_router(widget_router)
 app.include_router(faq_categories_router)
 app.include_router(tenant_analytics_router)
 app.include_router(companies_router)
@@ -970,7 +961,7 @@ async def logout(request: Request, response: Response):
             token = auth_header[7:].strip()
     if token:
         payload = decode_access_token(token)
-        if payload and not payload.get("widget") and payload.get("user_id"):
+        if payload and payload.get("user_id"):
             try:
                 async with db.pool.acquire() as conn:
                     await conn.execute(
@@ -1119,12 +1110,6 @@ async def upload_document(
                 document_id,tenant_id,
             )
 
-            # Document Index ("الفهرس") — Housing Bank only, additive to the
-            # RAG pipeline above. Reuses the `slides` already extracted, so
-            # this doesn't re-parse the file.
-            if await is_housing_bank_tenant(tenant_id):
-                index_pages = [{"page_number": s["slide_number"], "text": s["text"]} for s in slides]
-                await index_document_pages(conn, tenant_id, document_id, file.filename, "pptx", index_pages)
         return{
             "document_id":str(document_id),
             "filename":file.filename,
@@ -1232,25 +1217,6 @@ async def upload_document(
             "UPDATE documents SET status = 'ready' WHERE id = $1 AND tenant_id = $2",
             document_id, tenant_id,
         )
-
-        # Document Index ("الفهرس") — Housing Bank only, additive to the RAG
-        # pipeline above. PDF is re-parsed per-page here (extract_text() above
-        # only returns one flattened string with page boundaries already
-        # lost); .txt reuses the `text` already decoded above. .docx isn't
-        # supported by the index (extract_index_pages raises for it), so it's
-        # silently skipped.
-        if await is_housing_bank_tenant(tenant_id):
-            lower_name = file.filename.lower()
-            try:
-                if lower_name.endswith(".txt"):
-                    index_pages = split_txt_into_chunks(text)
-                    if index_pages:
-                        await index_document_pages(conn, tenant_id, document_id, file.filename, "txt", index_pages)
-                elif lower_name.endswith(".pdf"):
-                    _, index_pages = extract_index_pages(file.filename, file_bytes)
-                    await index_document_pages(conn, tenant_id, document_id, file.filename, "pdf", index_pages)
-            except ValueError as e:
-                logger.warning(f"Document Index extraction skipped for {file.filename}: {e}")
 
     return {
         "document_id": str(document_id),

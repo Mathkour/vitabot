@@ -6,7 +6,7 @@ import { AuthService } from '../services/auth.service';
 
 /**
  * Gate for pages that used to exist under BOTH /admin/* and /chat/* pointing
- * at the identical component (chat, profile, vita-insights, document-index)
+ * at the identical component (chat, profile, vita-insights)
  * — now that flattening the route tree collapsed each pair into a single
  * top-level route, there's no parent adminGuard/memberGuard left to enforce
  * "logged in, and not a superadmin who isn't acting as a tenant" the way
@@ -35,7 +35,7 @@ export const sharedPageGuard: CanActivateFn = (_route, state) => {
       }
       // company_admin's only granted scope is managing their own company's
       // users (/users, via companyAdminGuard) — these shared pages
-      // (chat/profile/vita-insights/document-index) are outside that, so
+      // (chat/profile/vita-insights) are outside that, so
       // explicitly denied rather than defaulting to "allowed" the way every
       // role that existed before company_admin implicitly did.
       if (authService.isCompanyAdmin()) {

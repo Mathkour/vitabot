@@ -47,8 +47,7 @@ import os
 import sys
 import time
 
-# Some existing content (confirmed live: Housing Bank's uploaded documents)
-# has non-ASCII/mojibake bytes that crash a plain `print()` under Windows'
+# Some existing uploaded content has non-ASCII/mojibake bytes that crash a plain `print()` under Windows'
 # default cp1252 console encoding. Only the printed preview is at risk here
 # (the actual embedding/DB-write path never encodes to console charset) —
 # replacing unprintable characters keeps the run going instead of crashing

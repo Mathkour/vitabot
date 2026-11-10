@@ -19,11 +19,8 @@ def _get_token(
         request: Request,
         credentials: HTTPAuthorizationCredentials | None,
 ) -> str:
-    # An explicit Authorization header wins over the cookie. The main app
-    # never sends one (it is cookie-only), but the embeddable widget runs in
-    # a cross-site iframe where cookies are unreliable and authenticates with
-    # a Bearer token — it must not be shadowed by a cpbot cookie the same
-    # browser may hold from an unrelated admin login.
+    # An explicit Authorization header wins over the cookie. The web app is
+    # cookie-only; a Bearer header is for API clients and tests.
     if credentials:
         return credentials.credentials
     token = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
@@ -38,11 +35,7 @@ async def _verify_token_version(payload: dict) -> None:
     server-side instead of only clearing the cookie.
 
     Tokens without a "tv" claim are pre-upgrade and still accepted until they
-    expire (so applying migration 009 does not log anyone out). Widget tokens
-    are skipped: they are short-lived, session-scoped, and minted without a
-    users row of their own to version."""
-    if payload.get("widget") is True:
-        return
+    expire (so applying migration 009 does not log anyone out)."""
     user_id = payload.get("user_id")
     token_version = payload.get("tv")
     if user_id is None or token_version is None:
@@ -202,27 +195,4 @@ def require_vita_care_admin(
     # admin-role check instead of being open to every Vita Care member.
     if not VITA_CARE_TENANT_ID or str(tenant_id) != VITA_CARE_TENANT_ID:
         raise HTTPException(status_code=403, detail="Companies are only available for Vita Care")
-    return tenant_id
-
-
-HOUSING_BANK_TENANT_NAME = "Housing Bank"
-
-
-async def is_housing_bank_tenant(tenant_id: str) -> bool:
-    # Checked by tenant NAME rather than a fixed tenant_id: more than one
-    # "Housing Bank" tenant row exists in this DB (separate onboarded
-    # instances sharing the same bank name), so a single hardcoded ID
-    # (the VITA_CARE_TENANT_ID pattern above) would silently exclude one
-    # of them. This matches the tenant-name check the Angular app already
-    # uses to gate Vita-Care-only UI (sidebar.ts, faq-page.ts).
-    async with db.pool.acquire() as conn:
-        tenant_name = await conn.fetchval("SELECT name FROM tenants WHERE id = $1", tenant_id)
-    return tenant_name == HOUSING_BANK_TENANT_NAME
-
-
-async def require_housing_bank_tenant(
-        tenant_id: str = Depends(get_current_tenant),
-) -> str:
-    if not await is_housing_bank_tenant(tenant_id):
-        raise HTTPException(status_code=403, detail="Document Index is only available for Housing Bank")
     return tenant_id

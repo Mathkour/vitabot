@@ -6,7 +6,7 @@ import { Topbar } from '../topbar/topbar';
 
 /**
  * Shell for routes shared between the admin and member areas (chat, profile,
- * vita-insights, document-index — see sharedPageGuard and app.routes.ts).
+ * vita-insights — see sharedPageGuard and app.routes.ts).
  * These pages used to pick their shell from the /admin/* vs /chat/* URL
  * prefix; flattening the routes removed that prefix, so the shell is chosen
  * here instead, from the visiting user's actual role. Only one

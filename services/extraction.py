@@ -99,48 +99,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     return "\n".join(text_parts)
 
 
-def extract_pdf_pages(file_bytes: bytes) -> list[dict]:
-    """
-    Per-page PDF text extraction for the Document Index feature. Kept
-    separate from extract_text_from_pdf (which flattens the whole document
-    and makes one whole-document OCR decision) because the index needs real
-    page boundaries preserved, with the OCR fallback decided per page instead.
-    Returns [{"page_number": int, "text": str}, ...], 1-indexed.
-    """
-    with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-        direct_texts = [page.extract_text() or "" for page in pdf.pages]
-
-    pages_out = []
-    ocr_images = None
-    for i, page_text in enumerate(direct_texts):
-        page_number = i + 1
-        if not _looks_corrupted(page_text):
-            pages_out.append({"page_number": page_number, "text": page_text.strip()})
-            continue
-
-        if ocr_images is None:
-            try:
-                ocr_images = convert_from_bytes(file_bytes, dpi=200, fmt="jpeg")
-            except Exception as e:
-                logger.exception(f"PDF OCR fallback failed (per-page mode, rasterization): {e}")
-                raise ValueError(f"OCR failed: {str(e)}")
-
-        if i < len(ocr_images):
-            try:
-                img_bytes = _page_to_jpeg_bytes(ocr_images[i])
-                ocr_text = extract_text_from_image(img_bytes)
-                if ocr_text.strip():
-                    pages_out.append({"page_number": page_number, "text": ocr_text.strip()})
-            except Exception as e:
-                # One bad page (corrupt image data, oversized page, etc.)
-                # shouldn't take down indexing for the rest of the document.
-                logger.exception(f"PDF OCR fallback failed on page {page_number}: {e}")
-
-    if not pages_out:
-        raise ValueError("Could not extract any text from this pdf")
-    return pages_out
-
-
 def extract_text_from_docx(file_bytes: bytes) -> str:
     doc = Document(io.BytesIO(file_bytes))
     return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
