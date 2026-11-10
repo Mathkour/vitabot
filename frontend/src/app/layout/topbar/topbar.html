@@ -25,6 +25,12 @@
         <span class="material-symbols-outlined">help</span>
         <span class="topbar__quick-link-label">FAQ</span>
       </button>
+      @if (showAskOdoo()) {
+        <button type="button" class="topbar__quick-link" routerLink="/vita-insights">
+          <span class="material-symbols-outlined">insights</span>
+          <span class="topbar__quick-link-label">{{ lang.translate('nav.vitaInsights') }}</span>
+        </button>
+      }
       @if (showVideos()) {
         <button type="button" class="topbar__quick-link" routerLink="/videos">
           <span class="material-symbols-outlined">smart_display</span>

@@ -7,6 +7,7 @@ import {
   SupportTicketMessage,
   SupportTicketStatus,
 } from '../../../core/models/support-ticket.models';
+import { ConfirmDialogService } from '../../../core/services/confirm-dialog.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { SupportTicketsService } from '../../../core/services/support-tickets.service';
 
@@ -18,6 +19,7 @@ import { SupportTicketsService } from '../../../core/services/support-tickets.se
 })
 export class AdminSupportTickets implements OnInit {
   private readonly supportTicketsService = inject(SupportTicketsService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   readonly lang = inject(LanguageService);
 
   readonly activeTab = signal<SupportTicketStatus>('pending');
@@ -99,10 +101,16 @@ export class AdminSupportTickets implements OnInit {
     });
   }
 
-  deleteTicket(ticket: AdminSupportTicket, event: Event): void {
+  async deleteTicket(ticket: AdminSupportTicket, event: Event): Promise<void> {
     event.stopPropagation();
     if (this.deletingTicketId()) return;
-    if (!confirm(this.lang.translate('supportTicketsAdmin.confirmDelete'))) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: this.lang.translate('supportTicketsAdmin.deleteTitle'),
+      message: this.lang.translate('supportTicketsAdmin.confirmDelete'),
+      confirmLabel: this.lang.translate('common.delete'),
+      cancelLabel: this.lang.translate('common.cancel'),
+    });
+    if (!confirmed) return;
 
     this.deletingTicketId.set(ticket.id);
     this.supportTicketsService.delete(ticket.id).subscribe({

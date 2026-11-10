@@ -28,7 +28,7 @@ import secrets
 import uuid as uuid_lib
 from fastapi.responses import FileResponse
 from services.tts import synthesize_speech , transcribe_audio, get_fallback_audio, TTSGenerationFailed
-from services.odoo_service import get_sales_summary,get_top_products,get_customer_summary,OdooError,build_odoo_context
+from services.odoo_service import get_sales_summary,get_top_products,get_customer_summary,OdooError,build_odoo_context,OdooClient
 from services import odoo_service
 from services import storage
 from services.odoo_agent import odoo_agent_ask
@@ -698,6 +698,9 @@ async def odoo_sso(
             company_id = None
             if body.company_slug:
                 company_id = await _resolve_or_create_company(conn, tenant_id, body.company_slug)
+            logger.info(
+                f"Odoo SSO: odoo_identity={odoo_identity!r} company_slug={body.company_slug!r} company_id={company_id!r}"
+            )
 
             user = await conn.fetchrow(
                 "SELECT id, tenant_id, role, username, token_version FROM users WHERE tenant_id = $1 AND odoo_identity = $2",
@@ -710,11 +713,24 @@ async def odoo_sso(
                 # future request matches on that instead. A row that
                 # already has an odoo_identity is never touched by this
                 # lookup, so this can't hijack an already-migrated account.
+                # A row still without a company is claimable too (the UPDATE
+                # further down then assigns this request's company) — but
+                # only one last used from this same Odoo instance (same
+                # odoo_client_key). A client instance (client_key set) may
+                # only claim a plain member: otherwise any client's Odoo admin
+                # could create a user whose login matches e.g. a Vita Care
+                # admin's email and claim that account, role and all. Vita
+                # Care's own internal instance (no client_key, signed with
+                # ODOO_SSO_INTERNAL_SECRET) is trusted to claim any role, so
+                # staff promoted to admin before migrating aren't locked out.
                 user = await conn.fetchrow(
                     "SELECT id, tenant_id, role, username, token_version FROM users "
-               "WHERE tenant_id = $1 AND LOWER(email) = LOWER($2) AND odoo_identity IS NULL "
-                    "AND company_id IS NOT DISTINCT FROM $3",
-                    tenant_id, body.email, company_id )
+                    "WHERE tenant_id = $1 AND LOWER(email) = LOWER($2) AND odoo_identity IS NULL "
+                    "AND odoo_client_key IS NOT DISTINCT FROM $4 "
+                    "AND ($4::text IS NULL OR role = 'member') "
+                    "AND (company_id IS NULL OR company_id IS NOT DISTINCT FROM $3)",
+                    tenant_id, body.email, company_id, body.client_key,
+                )
                 if user is not None:
                     await conn.execute(
                         "UPDATE users SET odoo_identity = $1, odoo_client_key = $2 WHERE id = $3",
@@ -1254,6 +1270,42 @@ def _format_slide_range(slide_numbers:list[int])->str:
 
 def _contains_arabic(text:str)->bool:
     return bool(re.search(r'[\u0600-\u06FF]',text))
+
+# Safety net for the [[NO_INFO]] marker: the system prompt in generate_answer
+# instructs the model to always lead with that exact marker when declining,
+# but it occasionally declines in its own words instead (especially in
+# Arabic) without the marker \u2014 which would otherwise slip through as a
+# normal "ask" answer and pollute the Most Frequent Questions analytics
+# instead of landing in Weak Answers. Only matched against the start of the
+# answer, same as the marker itself, to avoid false-positives on a real
+# answer that merely mentions uncertainty mid-sentence.
+_NO_INFO_LEAD_PATTERNS = (
+    "i don't have enough information",
+    "i do not have enough information",
+    "i don't have specific information",
+    "i don't have that information",
+    "i don't have information about",
+    "i'm sorry, but i don't have",
+    "i'm sorry, i don't have",
+    "unfortunately, i don't have",
+    "i don't have details about",
+    "\u0644\u0627 \u0623\u0645\u0644\u0643 \u0645\u0639\u0644\u0648\u0645\u0627\u062A",
+    "\u0644\u0627 \u0627\u0645\u0644\u0643 \u0645\u0639\u0644\u0648\u0645\u0627\u062A",
+    "\u0644\u064A\u0633 \u0644\u062F\u064A \u0645\u0639\u0644\u0648\u0645\u0627\u062A",
+    "\u0644\u064A\u0633\u062A \u0644\u062F\u064A \u0645\u0639\u0644\u0648\u0645\u0627\u062A",
+    "\u0644\u0627 \u062A\u062A\u0648\u0641\u0631 \u0644\u062F\u064A \u0645\u0639\u0644\u0648\u0645\u0627\u062A",
+    "\u0644\u0627 \u064A\u0648\u062C\u062F \u0644\u062F\u064A \u0645\u0639\u0644\u0648\u0645\u0627\u062A",
+    "\u0644\u0644\u0623\u0633\u0641 \u0644\u0627 \u0623\u0645\u0644\u0643",
+    "\u0644\u0644\u0627\u0633\u0641 \u0644\u0627 \u0627\u0645\u0644\u0643",
+    "\u0644\u0644\u0623\u0633\u0641 \u0644\u064A\u0633 \u0644\u062F\u064A",
+    "\u0639\u0630\u0631\u0627\u064B\u060C \u0644\u0627 \u0623\u0645\u0644\u0643",
+    "\u0639\u0630\u0631\u0627 \u0644\u0627 \u0627\u0645\u0644\u0643",
+    "\u0644\u0627 \u0623\u0645\u0644\u0643 \u0647\u0630\u0647 \u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0629",
+)
+
+def _looks_like_no_info(answer: str) -> bool:
+    lead = answer.strip().lower()[:160]
+    return any(pattern in lead for pattern in _NO_INFO_LEAD_PATTERNS)
 
 def _translate_verbatim_to_arabic(text: str, tenant_id: str | None = None) -> str:
     """
@@ -1822,8 +1874,11 @@ async def ask(
         else:
             context_chuncks=[r["content"]for r in relevant_results] if relevant_results else[]
             answer=generate_answer(body.question,context_chuncks,media_hint,history,tenant_id=tenant_id)
-            if answer.startswith("[[NO_INFO]]"):
-                answer = answer[len("[[NO_INFO]]"):].strip()
+            # Routed through generate_no_info_response (rather than keeping
+            # the model's own wording) so it logs the 'no_info_response' row
+            # that Weak Answers analytics reads — see tenant_analytics.py.
+            if answer.startswith("[[NO_INFO]]") or _looks_like_no_info(answer):
+                answer = generate_no_info_response(body.question, tenant_id=tenant_id)
                 offer_support = True
         msg=await conn.fetchrow("INSERT INTO messages (tenant_id, conversation_id, role, content, created_at) VALUES ($1, $2, 'assistant', $3, clock_timestamp()) RETURNING id",
             tenant_id, conversation_id, answer,)
@@ -2952,13 +3007,66 @@ async def list_videos(tenant_id: str = Depends(require_vita_care_tenant)):
     return [dict(r) for r in rows]
 
 
+ODOO_NOT_CONFIGURED_FOR_COMPANY = "Ask Odoo isn't set up for your company yet"
+
+
+async def _resolve_odoo_access(tenant_id: str, user_id: str) -> tuple[str, dict | None]:
+    """Decides which Odoo (if any) this user's Odoo data comes from:
+
+      - ("company", connection): signed in through a client's Odoo SSO
+        (odoo_client_key) that has a connection on file -> that client's
+        own Odoo, never Vita Care's.
+      - ("vita_care", None): no company and no client key, i.e. Vita Care's
+        own staff -> Vita Care's own Odoo (the env default).
+
+    Anyone else is refused with 403 rather than falling back to Vita
+    Care's Odoo: a company user without a client connection, or a client
+    key with no connection on file. That fallback used to hand Vita Care's
+    internal sales/customer data to any company user who happened to lack
+    a client key (e.g. a company sign-up, or an SSO with no client_key)."""
+    async with db.tenant_connection(tenant_id) as conn:
+        user = await conn.fetchrow(
+            "SELECT company_id, odoo_client_key FROM users WHERE id = $1 AND tenant_id = $2",
+            user_id, tenant_id,
+        )
+    if user is None:
+        raise HTTPException(status_code=403, detail="Ask Odoo is not available for this account")
+    if user["odoo_client_key"]:
+        connection = await odoo_service.get_client_odoo_connection(user["odoo_client_key"])
+        if connection:
+            return "company", connection
+        raise HTTPException(status_code=403, detail=ODOO_NOT_CONFIGURED_FOR_COMPANY)
+    if user["company_id"]:
+        raise HTTPException(status_code=403, detail=ODOO_NOT_CONFIGURED_FOR_COMPANY)
+    return "vita_care", None
+
+
+@app.get("/odoo/access")
+async def odoo_access(
+    tenant_id: str = Depends(require_vita_care_tenant),
+    user_id: str = Depends(get_current_user_id),
+):
+    """Lets the frontend show Ask Odoo only to users /odoo/ask would serve —
+    same rule, never the connection details themselves."""
+    try:
+        source, _ = await _resolve_odoo_access(tenant_id, user_id)
+    except HTTPException as e:
+        return {"allowed": False, "source": None, "reason": e.detail}
+    return {"allowed": True, "source": source, "reason": None}
+
+
 @app.get("/odoo/dashboard")
-async def odoo_dashboard(_: str = Depends(require_vita_care_tenant)):
+async def odoo_dashboard(
+    tenant_id: str = Depends(require_vita_care_tenant),
+    user_id: str = Depends(get_current_user_id),
+):
+    _, connection = await _resolve_odoo_access(tenant_id, user_id)
+    client = OdooClient(**connection) if connection else None
     try:
         return{
-            "sales":get_sales_summary(),
-            "top_products":get_top_products(),
-            "customers":get_customer_summary(),
+            "sales":get_sales_summary(client=client),
+            "top_products":get_top_products(client=client),
+            "customers":get_customer_summary(client=client),
         }
     except OdooError as e:
         raise HTTPException(status_code=503,detail=str(e))
@@ -2973,9 +3081,15 @@ async def odoo_ask(
     tenant_id: str = Depends(require_vita_care_tenant),
     user_id: str = Depends(get_current_user_id),
 ):
+    # Checked first, before any embedding/LLM work: a company user only
+    # ever reaches their own company's Odoo, and only Vita Care's own staff
+    # (no company, no client key) reach Vita Care's — see
+    # _resolve_odoo_access. client_connection None = Vita Care's Odoo.
+    _, client_connection = await _resolve_odoo_access(tenant_id, user_id)
+
     async with db.tenant_connection(tenant_id) as conn:
         current_user = await conn.fetchrow(
-            "SELECT email, username, odoo_client_key FROM users WHERE id = $1 AND tenant_id = $2",
+            "SELECT email, username FROM users WHERE id = $1 AND tenant_id = $2",
             user_id, tenant_id,
         )
         question_embedding = await get_embedding(body.question)
@@ -2984,14 +3098,6 @@ async def odoo_ask(
     current_user_email = current_user["email"] if current_user else None
     current_username = current_user["username"] if current_user else None
     kb_context = [c["content"] for c in kb_chunks] if kb_chunks else []
-
-    # A user who signed in through a client's Odoo SSO carries that
-    # client's key, so their Ask Odoo questions route to THEIR company's
-    # Odoo instead of Vita Care's own. No key (e.g. a direct Vita Care
-    # login) falls back to the default Vita Care Odoo inside odoo_agent_ask.
-    client_connection = None
-    if current_user and current_user["odoo_client_key"]:
-        client_connection = await odoo_service.get_client_odoo_connection(current_user["odoo_client_key"])
 
     result = odoo_agent_ask(
         body.question,

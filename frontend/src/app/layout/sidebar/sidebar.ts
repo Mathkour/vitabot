@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, computed, inject, input, output, signal }
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { LanguageService } from '../../core/services/language.service';
+import { OdooAccessService } from '../../core/services/odoo-access.service';
 import { SupportTicketsService } from '../../core/services/support-tickets.service';
 import { TenantThemeService } from '../../core/services/tenant-theme.service';
 
@@ -49,6 +50,7 @@ export class Sidebar implements OnInit, OnDestroy {
   readonly tenantTheme = inject(TenantThemeService);
   private readonly authService = inject(AuthService);
   private readonly supportTicketsService = inject(SupportTicketsService);
+  private readonly odooAccess = inject(OdooAccessService);
   private pendingTicketsPollTimer: ReturnType<typeof setInterval> | null = null;
 
   readonly pendingTicketsCount = signal(0);
@@ -58,12 +60,16 @@ export class Sidebar implements OnInit, OnDestroy {
   /** Emitted when a nav link (or the brand) is activated, so the host can close the mobile overlay. */
   readonly linkActivated = output<void>();
 
-  // "Ask Odoo" disabled per request — the route itself now redirects away
-  // (see app.routes.ts) regardless of this, but the link is removed too so
-  // it's never shown in the first place.
-  // Not reachable by a company_admin (shared-page.guard.ts explicitly
-  // denies that role) — hidden for them so the sidebar doesn't show a link
-  // that always dead-ends at /access-denied.
+  // Neither of these is reachable by a company_admin (shared-page.guard.ts
+  // explicitly denies that role) — hidden for them so the sidebar doesn't
+  // show a link that always dead-ends at /access-denied. Ask Odoo is also
+  // hidden unless the backend says this user may use it (OdooAccessService).
+  readonly showVitaInsights = computed(
+    () =>
+      this.tenantTheme.tenantName() === VITA_CARE_TENANT_NAME &&
+      !this.authService.isCompanyAdmin() &&
+      this.odooAccess.allowed(),
+  );
   readonly showDocumentIndex = computed(
     () => this.tenantTheme.tenantName() === HOUSING_BANK_TENANT_NAME && !this.authService.isCompanyAdmin(),
   );
@@ -88,6 +94,9 @@ export class Sidebar implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    if (this.tenantTheme.tenantName() === VITA_CARE_TENANT_NAME && !this.authService.isCompanyAdmin()) {
+      this.odooAccess.refresh();
+    }
     this.pollPendingTickets();
     this.pendingTicketsPollTimer = setInterval(() => this.pollPendingTickets(), PENDING_TICKETS_POLL_MS);
   }

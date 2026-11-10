@@ -39,11 +39,24 @@ async def top_questions(
         rows = await conn.fetch(
             """
             SELECT request_summary AS question, count(*) AS count
-            FROM ai_predictions_log
+            FROM ai_predictions_log a
             WHERE tenant_id = $1
               AND endpoint = 'ask'
               AND request_summary IS NOT NULL
               AND created_at >= now() - ($2 * interval '1 day')
+              -- generate_answer() logs an 'ask' row before its caller checks
+              -- for the [[NO_INFO]] marker, so a question that ultimately
+              -- got the "don't know" fallback is double-logged (one 'ask'
+              -- row, one 'no_info_response' row). Exclude those here so a
+              -- weak-answer question only ever shows under Weak Answers,
+              -- never under Most Frequent Questions.
+              AND NOT EXISTS (
+                SELECT 1 FROM ai_predictions_log w
+                WHERE w.tenant_id = a.tenant_id
+                  AND w.endpoint = 'no_info_response'
+                  AND w.request_summary = a.request_summary
+                  AND w.created_at >= now() - ($2 * interval '1 day')
+              )
             GROUP BY request_summary
             ORDER BY count DESC, max(created_at) DESC
             LIMIT $3
@@ -146,9 +159,16 @@ async def _build_tenant_digest(conn, tenant_id: str, days: int) -> dict:
     top = await conn.fetch(
         """
         SELECT request_summary AS question, count(*) AS count
-        FROM ai_predictions_log
+        FROM ai_predictions_log a
         WHERE tenant_id = $1 AND endpoint = 'ask' AND request_summary IS NOT NULL
           AND created_at >= now() - ($2 * interval '1 day')
+          AND NOT EXISTS (
+            SELECT 1 FROM ai_predictions_log w
+            WHERE w.tenant_id = a.tenant_id
+              AND w.endpoint = 'no_info_response'
+              AND w.request_summary = a.request_summary
+              AND w.created_at >= now() - ($2 * interval '1 day')
+          )
         GROUP BY request_summary ORDER BY count DESC LIMIT 10
         """,
         tenant_id, days,

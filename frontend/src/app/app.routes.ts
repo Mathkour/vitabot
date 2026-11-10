@@ -5,6 +5,7 @@ import { companyAdminGuard } from './core/guards/company-admin.guard';
 import { guestGuard } from './core/guards/guest.guard';
 import { housingBankTenantGuard } from './core/guards/housing-bank-tenant.guard';
 import { memberGuard } from './core/guards/member.guard';
+import { odooAccessGuard } from './core/guards/odoo-access.guard';
 import { sharedPageGuard } from './core/guards/shared-page.guard';
 import { superadminGuard } from './core/guards/superadmin.guard';
 import { uploadLockGuard } from './core/guards/upload-lock.guard';
@@ -216,14 +217,15 @@ export const routes: Routes = [
           import('./features/profile/profile-page/profile-page').then((m) => m.ProfilePage),
       },
       {
-        // "Ask Odoo" feature disabled per request — redirectTo instead of a
-        // guard so there's no component to ever load, no matter how the URL
-        // is reached (typed directly, bookmarked, old links, etc.). The
-        // component files are left in place, untouched, so this is easy to
-        // reverse later by swapping this back to the loadComponent it was.
+        // Shared with the old /admin/vita-insights ("Ask Odoo"). Only for
+        // users the backend allows: company users with their own company's
+        // Odoo connection, or Vita Care's own staff — see odooAccessGuard.
         path: 'vita-insights',
-        redirectTo: 'chat',
-        pathMatch: 'full',
+        canActivate: [sharedPageGuard, vitaCareTenantGuard, odooAccessGuard],
+        loadComponent: () =>
+          import('./features/admin/vita-insights/vita-insights').then(
+            (m) => m.VitaInsights,
+          ),
       },
       {
         // Shared with the old /admin/document-index.

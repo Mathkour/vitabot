@@ -24,6 +24,18 @@
       </a>
     }
 
+    @if (showVitaInsights()) {
+      <a
+        class="sidebar__link"
+        routerLink="/vita-insights"
+        routerLinkActive="sidebar__link--active"
+        (click)="linkActivated.emit()"
+      >
+        <span class="material-symbols-outlined sidebar__icon">insights</span>
+        <span class="sidebar__label">{{ lang.translate('nav.vitaInsights') }}</span>
+      </a>
+    }
+
     @if (showDocumentIndex()) {
       <a
         class="sidebar__link"

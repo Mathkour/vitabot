@@ -155,6 +155,18 @@ def generate_answer(question: str, context_chunks: list[str], media_hint: str | 
             "enough to fully answer, briefly and naturally invite the user to watch the attached "
             "video for the steps (in the user's language). Keep it short and helpful, not robotic."
         )
+    else:
+        system_prompt += (
+            "\n\nCRITICAL NO-PHANTOM-ATTACHMENT RULE: No video, image, or other attachment is "
+            "being shown alongside your answer this time. The context excerpts above may still "
+            "contain a sentence referring to an attached video or 'see the attached file/video "
+            "titled ...' — that sentence describes something attached to the ORIGINAL source "
+            "document, not something available here. You MUST NOT tell the user to watch an "
+            "attached video, see an attachment, or refer to any resource 'below' or 'attached' — "
+            "omit any such sentence entirely from your answer. Answer using only the remaining "
+            "textual steps/facts from the context; if removing that sentence leaves genuinely "
+            "nothing else relevant, use the [[NO_INFO]] marker instead."
+        )
 
     # Gemini uses 'model' for the assistant role (not 'assistant'), and takes
     # turns as Content objects rather than the Anthropic {"role","content"}
