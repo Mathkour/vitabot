@@ -9,34 +9,26 @@
   </div>
 
   <nav class="sidebar__nav">
-    @for (item of navItems(); track item.route) {
-      <a
-        class="sidebar__link"
-        [routerLink]="item.route"
-        routerLinkActive="sidebar__link--active"
-        (click)="linkActivated.emit()"
-      >
-        <span class="material-symbols-outlined sidebar__icon">{{ item.icon }}</span>
-        <span class="sidebar__label">{{ lang.translate(item.labelKey) }}</span>
-        @if (item.route === '/support-tickets-admin' && pendingTicketsCount() > 0) {
-          <span class="sidebar__badge">{{ pendingTicketsCount() }}</span>
+    @for (section of sections(); track $index) {
+      <div class="sidebar__section">
+        @if (section.titleKey) {
+          <div class="sidebar__section-title">{{ lang.translate(section.titleKey) }}</div>
         }
-        @if (item.route === '/unanswered-questions' && openUnansweredCount() > 0) {
-          <span class="sidebar__badge">{{ openUnansweredCount() }}</span>
+        @for (item of section.items; track item.route) {
+          <a
+            class="sidebar__link"
+            [routerLink]="item.route"
+            routerLinkActive="sidebar__link--active"
+            (click)="linkActivated.emit()"
+          >
+            <span class="material-symbols-outlined sidebar__icon">{{ item.icon }}</span>
+            <span class="sidebar__label">{{ lang.translate(item.labelKey) }}</span>
+            @if (badgeCount(item.badge) > 0) {
+              <span class="sidebar__badge">{{ badgeCount(item.badge) }}</span>
+            }
+          </a>
         }
-      </a>
-    }
-
-    @if (showVitaInsights()) {
-      <a
-        class="sidebar__link"
-        routerLink="/vita-insights"
-        routerLinkActive="sidebar__link--active"
-        (click)="linkActivated.emit()"
-      >
-        <span class="material-symbols-outlined sidebar__icon">insights</span>
-        <span class="sidebar__label">{{ lang.translate('nav.vitaInsights') }}</span>
-      </a>
+      </div>
     }
   </nav>
 </aside>

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import db
-from core.auth import get_current_tenant
+from core.auth import get_current_role, get_current_tenant
 from routers import faq_categories
 
 TENANT_A = "819c1132-f67b-42a1-ad46-50e051d398d7"
@@ -159,6 +159,7 @@ def env(monkeypatch):
     app = FastAPI()
     app.include_router(faq_categories.router)
     app.dependency_overrides[get_current_tenant] = lambda: TENANT_A
+    app.dependency_overrides[get_current_role] = lambda: "admin"
     return TestClient(app), conn
 
 
@@ -181,6 +182,7 @@ def vita_care_env(monkeypatch):
     app = FastAPI()
     app.include_router(faq_categories.router)
     app.dependency_overrides[get_current_tenant] = lambda: TENANT_A
+    app.dependency_overrides[get_current_role] = lambda: "admin"
     return TestClient(app), conn
 
 
@@ -339,6 +341,7 @@ def test_categories_are_tenant_scoped(env):
     app_b = FastAPI()
     app_b.include_router(faq_categories.router)
     app_b.dependency_overrides[get_current_tenant] = lambda: TENANT_B
+    app_b.dependency_overrides[get_current_role] = lambda: "admin"
 
     @contextlib.asynccontextmanager
     async def fake_tc(_tenant):
@@ -479,3 +482,12 @@ def test_admin_error_solutions_uncategorized_filter(vita_care_env):
 
     uncategorized = client.get("/admin/error-solutions", params={"uncategorized": "true"}).json()
     assert [e["error_text"] for e in uncategorized] == ["Uncategorized error"]
+
+
+def test_member_cannot_manage_categories(env):
+    """Creating/editing/deleting FAQ categories is admin-only."""
+    client, _ = env
+    client.app.dependency_overrides[get_current_role] = lambda: "member"
+    assert client.post("/admin/faq-categories", json={"name_ar": "x", "name_en": "x"}).status_code == 403
+    assert client.put(f"/admin/faq-categories/{uuid.uuid4()}", json={"name_ar": "x", "name_en": "x"}).status_code == 403
+    assert client.delete(f"/admin/faq-categories/{uuid.uuid4()}").status_code == 403

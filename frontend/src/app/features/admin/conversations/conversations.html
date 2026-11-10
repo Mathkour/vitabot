@@ -6,6 +6,16 @@
     </div>
   </div>
 
+  <div class="conversations__tabs" role="tablist">
+    <button type="button" role="tab" class="conversations__tab" [class.conversations__tab--active]="mode() === 'users'" [attr.aria-selected]="mode() === 'users'" (click)="setMode('users')">
+      <span class="material-symbols-outlined">group</span>{{ lang.translate('conversations.byUser') }}
+    </button>
+    <button type="button" role="tab" class="conversations__tab" [class.conversations__tab--active]="mode() === 'messages'" [attr.aria-selected]="mode() === 'messages'" (click)="setMode('messages')">
+      <span class="material-symbols-outlined">manage_search</span>{{ lang.translate('conversations.searchMessages') }}
+    </button>
+  </div>
+
+  @if (mode() === 'users') {
   <div class="conversations__search-row">
     <span class="material-symbols-outlined conversations__search-icon">search</span>
     <input
@@ -71,5 +81,70 @@
       [itemLabel]="lang.translate(total() === 1 ? 'users.countSingular' : 'users.countPlural')"
       (pageChange)="goToPage($event)"
     />
+  }
+  } @else {
+    <div class="card conversations__filters">
+      <label class="conversations__filter conversations__filter--grow">
+        <span class="conversations__filter-label">{{ lang.translate('conversations.containsText') }}</span>
+        <input type="search" class="conversations__filter-input" [placeholder]="lang.translate('conversations.searchPlaceholder')"
+          [ngModel]="msgQuery()" (ngModelChange)="msgQuery.set($event); onMessageFilterChange(true)" />
+      </label>
+      <label class="conversations__filter">
+        <span class="conversations__filter-label">{{ lang.translate('conversations.from') }}</span>
+        <input type="date" class="conversations__filter-input" [ngModel]="msgFrom()" (ngModelChange)="msgFrom.set($event); onMessageFilterChange()" />
+      </label>
+      <label class="conversations__filter">
+        <span class="conversations__filter-label">{{ lang.translate('conversations.to') }}</span>
+        <input type="date" class="conversations__filter-input" [ngModel]="msgTo()" (ngModelChange)="msgTo.set($event); onMessageFilterChange()" />
+      </label>
+      <div class="conversations__filter conversations__filter--company">
+        <span class="conversations__filter-label">{{ lang.translate('users.colCompany') }}</span>
+        <app-dropdown-select [options]="companyOptions()" [value]="msgCompany()" (valueChange)="msgCompany.set($event); onMessageFilterChange()" />
+      </div>
+      <label class="conversations__check">
+        <input type="checkbox" [ngModel]="msgOnlyDisliked()" (ngModelChange)="msgOnlyDisliked.set($event); onMessageFilterChange()" />
+        {{ lang.translate('conversations.onlyDisliked') }}
+      </label>
+      <button type="button" class="btn btn-secondary conversations__clear" (click)="clearMessageFilters()">{{ lang.translate('conversations.clearFilters') }}</button>
+    </div>
+
+    <div class="card conversations__table-card">
+      @if (msgLoading()) {
+        <div class="conversations__list-loading"><span class="conversations__spinner"></span>{{ lang.translate('common.loading') }}</div>
+      } @else if (msgError()) {
+        <p class="error-text">{{ msgError() }}</p>
+      } @else if (msgHits().length === 0) {
+        <p class="conversations__list-empty">{{ lang.translate('conversations.noMessagesMatch') }}</p>
+      } @else {
+        <p class="conversations__hit-count">{{ lang.translate('conversations.hits').replace('{n}', '' + msgTotal()) }}</p>
+        <ul class="conversations__hits">
+          @for (hit of msgHits(); track hit.id) {
+            <li>
+              <button type="button" class="conversations__hit" [disabled]="!hit.user_id" (click)="openHit(hit)">
+                <span class="conversations__hit-head">
+                  <span class="pill" [class.pill-info]="hit.role === 'user'" [class.pill-success]="hit.role === 'assistant'">
+                    {{ lang.translate(hit.role === 'user' ? 'conversations.question' : 'conversations.botAnswer') }}
+                  </span>
+                  @if (hit.score === -1) {
+                    <span [title]="lang.translate('conversations.ratedDown')">👎</span>
+                  }
+                  @if (hit.score === 1) {
+                    <span [title]="lang.translate('conversations.ratedUp')">👍</span>
+                  }
+                  <span class="conversations__hit-meta">
+                    {{ hit.username || hit.email || lang.translate('unanswered.unknownUser') }}@if (hit.company_name) { · {{ hit.company_name }} } · {{ hit.created_at | date: 'medium' }}
+                  </span>
+                </span>
+                <span class="conversations__hit-text" dir="auto">{{ hit.content }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    @if (!msgLoading() && msgTotalPages() > 1) {
+      <app-pagination [page]="msgPage()" [totalPages]="msgTotalPages()" [total]="msgTotal()" [itemLabel]="lang.translate('conversations.messagePlural')" (pageChange)="goToMessagePage($event)" />
+    }
   }
 </div>

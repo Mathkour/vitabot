@@ -16,6 +16,6 @@ export class AccessDenied {
   readonly lang = inject(LanguageService);
 
   goToSafety(): void {
-    this.router.navigate([this.auth.isAdmin() ? '/knowledge-base' : '/chat']);
+    this.router.navigate([this.auth.isAdmin() ? '/dashboard' : '/chat']);
   }
 }

@@ -52,7 +52,7 @@ export class AdminSessionService {
     );
 
     this.injector.get(TenantThemeService).applyBranding(branding);
-    this.router.navigate(['/knowledge-base']);
+    this.router.navigate(['/dashboard']);
   }
 
   exitTenant(): void {

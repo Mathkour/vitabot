@@ -1,0 +1,142 @@
+.al {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.al__subtext {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.al__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.al__area {
+  min-width: 200px;
+}
+
+.al__search {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-input);
+  color: var(--color-text-secondary);
+
+  &:focus-within { border-color: var(--color-accent); }
+  .material-symbols-outlined { font-size: 18px; }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    color: var(--color-text);
+  }
+}
+
+.al__card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.al__status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 16px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.al__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: al-spin 0.7s linear infinite;
+}
+
+@keyframes al-spin {
+  to { transform: rotate(360deg); }
+}
+
+.al__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.al__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+
+  & + & { border-top: 1px solid var(--color-border); }
+}
+
+.al__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  font-size: 18px;
+}
+
+.al__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.al__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.al__action {
+  color: var(--color-text-secondary);
+}
+
+.al__summary {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.al__time {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.al__pagination {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+}

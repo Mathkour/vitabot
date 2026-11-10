@@ -156,3 +156,139 @@
 @keyframes conversations-spin {
   to { transform: rotate(360deg); }
 }
+
+
+.conversations__tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.conversations__tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+
+  .material-symbols-outlined { font-size: 18px; }
+  &:hover { color: var(--color-text); }
+
+  &--active {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+  }
+}
+
+.conversations__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px;
+}
+
+.conversations__filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &--grow { flex: 1; min-width: 220px; }
+  &--company { min-width: 200px; }
+}
+
+.conversations__filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.conversations__filter-input {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-input);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+
+  &:focus { outline: none; border-color: var(--color-accent); }
+}
+
+.conversations__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  font-size: 13px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.conversations__clear {
+  margin-inline-start: auto;
+}
+
+.conversations__hit-count {
+  margin: 0;
+  padding: 12px 16px 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.conversations__hits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li + li { border-top: 1px solid var(--color-border); }
+}
+
+.conversations__hit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: start;
+  color: var(--color-text);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--color-bg); }
+  &:disabled { cursor: default; }
+}
+
+.conversations__hit-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.conversations__hit-meta {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.conversations__hit-text {
+  font-size: 14px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}

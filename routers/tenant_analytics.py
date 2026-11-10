@@ -21,10 +21,13 @@ adding new instrumentation:
 import os
 import secrets
 
+import asyncpg
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 import db
 from core.auth import require_admin
+from services.email import email_enabled, send_email
 
 router = APIRouter(prefix="/analytics", tags=["tenant-analytics"])
 
@@ -192,13 +195,51 @@ async def _build_tenant_digest(conn, tenant_id: str, days: int) -> dict:
         tenant_id, days,
     )
     total = rated["thumbs_up"] + rated["thumbs_down"]
+    pending_tickets = await conn.fetchval(
+        "SELECT count(*) FROM support_tickets WHERE tenant_id = $1 AND status = 'pending'", tenant_id,
+    )
+    # Tables/columns from newer migrations: 0 until those are applied.
+    open_unanswered = await _count_or_zero(
+        conn, "SELECT count(*) FROM unanswered_questions WHERE tenant_id = $1 AND status = 'open'", tenant_id,
+    )
+    feedback_to_review = await _count_or_zero(
+        conn, "SELECT count(*) FROM ratings WHERE tenant_id = $1 AND score = -1 AND review_status IS NULL", tenant_id,
+    )
     return {
         "tenant_id": tenant_id,
         "days": days,
         "top_questions": [{"question": r["question"], "count": r["count"]} for r in top],
         "weak_answers": [{"question": r["question"], "count": r["count"]} for r in weak],
         "satisfaction_rate": round(100 * rated["thumbs_up"] / total, 1) if total else None,
+        "open_unanswered": open_unanswered,
+        "pending_tickets": pending_tickets,
+        "feedback_to_review": feedback_to_review,
     }
+
+
+async def _count_or_zero(conn, sql: str, *args) -> int:
+    try:
+        async with conn.transaction():
+            return await conn.fetchval(sql, *args)
+    except (asyncpg.UndefinedTableError, asyncpg.UndefinedColumnError):
+        return 0
+
+
+def _digest_email(tenant_name: str, d: dict) -> str:
+    lines = [
+        f"Vita Bot summary for {tenant_name}, last {d['days']} days",
+        "",
+        "Needs your attention:",
+        f"  - Unanswered questions: {d['open_unanswered']}",
+        f"  - Answers rated thumbs-down to review: {d['feedback_to_review']}",
+        f"  - Pending support tickets: {d['pending_tickets']}",
+        "",
+        f"Satisfaction rate: {d['satisfaction_rate']}%" if d["satisfaction_rate"] is not None else "Satisfaction rate: no ratings yet",
+    ]
+    if d["top_questions"]:
+        lines += ["", "Most asked:"] + [f"  - {q['question']} ({q['count']})" for q in d["top_questions"][:5]]
+    lines += ["", "Open the admin dashboard to act on these: " + os.getenv("ADMIN_DASHBOARD_URL", "https://vitabot.vitacareonline.com/dashboard")]
+    return "\n".join(lines)
 
 
 @router.post("/digest-run")
@@ -219,11 +260,23 @@ async def run_digest(
         raise HTTPException(status_code=403, detail="Invalid digest secret")
 
     async with db.pool.acquire() as conn:
-        tenant_ids = [r["id"] for r in await conn.fetch("SELECT id FROM tenants")]
+        tenants = await conn.fetch("SELECT id, name FROM tenants")
 
     digests = []
-    for tenant_id in tenant_ids:
-        async with db.tenant_connection(str(tenant_id)) as conn:
-            digests.append(await _build_tenant_digest(conn, str(tenant_id), days))
+    emailed = 0
+    for tenant in tenants:
+        async with db.tenant_connection(str(tenant["id"])) as conn:
+            digest = await _build_tenant_digest(conn, str(tenant["id"]), days)
+            admins = [r["email"] for r in await conn.fetch(
+                "SELECT email FROM users WHERE tenant_id = $1 AND role = 'admin'", tenant["id"],
+            )]
+        digests.append(digest)
+        # Emailed only when SMTP is configured (services/email.py) and there's
+        # something worth telling the admins about.
+        if email_enabled() and admins and (
+            digest["open_unanswered"] or digest["feedback_to_review"] or digest["pending_tickets"]
+        ):
+            if await send_email(admins, f"Vita Bot: {tenant['name']} summary", _digest_email(tenant["name"], digest)):
+                emailed += 1
 
-    return {"days": days, "tenant_count": len(digests), "digests": digests}
+    return {"days": days, "tenant_count": len(digests), "emailed_tenants": emailed, "digests": digests}

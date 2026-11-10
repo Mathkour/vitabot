@@ -89,7 +89,14 @@
     </div>
 
     <div class="card analytics__table-card">
-      <h3 class="analytics__section-title">{{ lang.translate('tenantAnalytics.topQuestions') }}</h3>
+      <div class="analytics__section-head">
+        <h3 class="analytics__section-title">{{ lang.translate('tenantAnalytics.topQuestions') }}</h3>
+        @if (topQuestions().length > 0) {
+          <button type="button" class="analytics__export" (click)="exportTopQuestions()">
+            <span class="material-symbols-outlined">download</span>{{ lang.translate('tenantAnalytics.exportCsv') }}
+          </button>
+        }
+      </div>
 
       @if (topQuestions().length === 0) {
         <p class="analytics__list-empty">{{ lang.translate('tenantAnalytics.noTopQuestions') }}</p>
@@ -116,7 +123,14 @@
     </div>
 
     <div class="card analytics__table-card">
-      <h3 class="analytics__section-title">{{ lang.translate('tenantAnalytics.weakAnswers') }}</h3>
+      <div class="analytics__section-head">
+        <h3 class="analytics__section-title">{{ lang.translate('tenantAnalytics.weakAnswers') }}</h3>
+        @if (weakAnswers().length > 0) {
+          <button type="button" class="analytics__export" (click)="exportWeakAnswers()">
+            <span class="material-symbols-outlined">download</span>{{ lang.translate('tenantAnalytics.exportCsv') }}
+          </button>
+        }
+      </div>
       <p class="analytics__hint">{{ lang.translate('tenantAnalytics.weakAnswersHint') }}</p>
 
       @if (weakAnswers().length === 0) {
@@ -129,6 +143,7 @@
                 <th>{{ lang.translate('tenantAnalytics.colQuestion') }}</th>
                 <th>{{ lang.translate('tenantAnalytics.colCount') }}</th>
                 <th>{{ lang.translate('tenantAnalytics.colLastSeen') }}</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -137,6 +152,11 @@
                   <td class="analytics__question-cell">{{ row.question }}</td>
                   <td>{{ row.count }}</td>
                   <td class="analytics__created-cell">{{ formatDate(row.last_seen) }}</td>
+                  <td>
+                    <a class="analytics__answer-link" routerLink="/unanswered-questions" [queryParams]="{ search: row.question }">
+                      {{ lang.translate('tenantAnalytics.answerIt') }}
+                    </a>
+                  </td>
                 </tr>
               }
             </tbody>
@@ -144,5 +164,44 @@
         </div>
       }
     </div>
+
+    @if (companies().length > 0) {
+      <div class="card analytics__table-card">
+        <div class="analytics__section-head">
+          <h3 class="analytics__section-title">{{ lang.translate('tenantAnalytics.byCompany') }}</h3>
+          <button type="button" class="analytics__export" (click)="exportCompanies()">
+            <span class="material-symbols-outlined">download</span>{{ lang.translate('tenantAnalytics.exportCsv') }}
+          </button>
+        </div>
+        <div class="analytics__table-wrap">
+          <table class="analytics__table">
+            <thead>
+              <tr>
+                <th>{{ lang.translate('tenantAnalytics.col.company') }}</th>
+                <th class="analytics__num">{{ lang.translate('tenantAnalytics.col.users') }}</th>
+                <th class="analytics__num">{{ lang.translate('tenantAnalytics.col.active_users') }}</th>
+                <th class="analytics__num">{{ lang.translate('tenantAnalytics.col.questions') }}</th>
+                <th class="analytics__num">{{ lang.translate('tenantAnalytics.col.unanswered') }}</th>
+                <th class="analytics__num">👍</th>
+                <th class="analytics__num">👎</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of companies(); track row.company_id) {
+                <tr>
+                  <td [class.analytics__muted]="!row.name">{{ companyName(row) }}</td>
+                  <td class="analytics__num">{{ row.users }}</td>
+                  <td class="analytics__num">{{ row.active_users }}</td>
+                  <td class="analytics__num">{{ row.questions }}</td>
+                  <td class="analytics__num">{{ row.unanswered }}</td>
+                  <td class="analytics__num">{{ row.thumbs_up }}</td>
+                  <td class="analytics__num">{{ row.thumbs_down }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
   }
 </div>

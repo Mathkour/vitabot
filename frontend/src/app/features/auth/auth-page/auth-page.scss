@@ -21,7 +21,7 @@
   display: flex;
   gap: 8px;
 
-  [dir='rtl'] & {
+  :host-context([dir='rtl']) & {
     right: auto;
     left: 24px;
   }

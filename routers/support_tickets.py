@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import db
+from services.activity import label_for, log_detached
 from core.auth import get_current_tenant, get_current_user_id, require_admin_or_company_admin, UserScope
 
 router = APIRouter(prefix="/support-tickets", tags=["support-tickets"])
@@ -283,6 +284,7 @@ async def resolve_ticket(
     scope: UserScope = Depends(require_admin_or_company_admin),
     admin_user_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(scope.tenant_id, "SELECT question FROM support_tickets WHERE id = $1 AND tenant_id = $2", ticket_id, scope.tenant_id)
     async with db.tenant_connection(scope.tenant_id) as conn:
         if scope.role == "company_admin":
             owner_company = await _company_scoped_ticket_owner(conn, ticket_id, scope.tenant_id)
@@ -298,6 +300,7 @@ async def resolve_ticket(
         )
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="Ticket not found")
+    await log_detached(scope.tenant_id, admin_user_id, 'ticket.resolve', _label)
     return {"status": "resolved"}
 
 
@@ -305,7 +308,9 @@ async def resolve_ticket(
 async def delete_ticket(
     ticket_id: str,
     scope: UserScope = Depends(require_admin_or_company_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(scope.tenant_id, "SELECT question FROM support_tickets WHERE id = $1 AND tenant_id = $2", ticket_id, scope.tenant_id)
     async with db.tenant_connection(scope.tenant_id) as conn:
         if scope.role == "company_admin":
             owner_company = await _company_scoped_ticket_owner(conn, ticket_id, scope.tenant_id)
@@ -318,4 +323,5 @@ async def delete_ticket(
         )
     if result == "DELETE 0":
         raise HTTPException(status_code=404, detail="Ticket not found")
+    await log_detached(scope.tenant_id, actor_id, 'ticket.delete', _label)
     return {"status": "deleted"}

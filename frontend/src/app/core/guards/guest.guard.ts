@@ -14,5 +14,5 @@ export const guestGuard: CanActivateFn = () => {
     return router.createUrlTree(['/superadmin']);
   }
 
-  return router.createUrlTree([authService.isAdmin() ? '/knowledge-base' : '/chat']);
+  return router.createUrlTree([authService.isAdmin() ? '/dashboard' : '/chat']);
 };

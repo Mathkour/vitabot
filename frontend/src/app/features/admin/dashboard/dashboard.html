@@ -1,0 +1,155 @@
+<div class="dash">
+  <div class="dash__header">
+    <div>
+      <h2>{{ name() ? lang.translate('dashboard.greeting').replace('{name}', name()) : lang.translate('dashboard.title') }}</h2>
+      <p class="dash__subtext">{{ lang.translate('dashboard.subtitle') }}</p>
+    </div>
+    <div class="dash__range" role="group" [attr.aria-label]="lang.translate('dashboard.period')">
+      @for (r of ranges; track r) {
+        <button type="button" class="dash__range-btn" [class.dash__range-btn--active]="days() === r" [attr.aria-pressed]="days() === r" (click)="setDays(r)">
+          {{ lang.translate('dashboard.lastDays').replace('{n}', '' + r) }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (isLoading() && !data()) {
+    <div class="card dash__status"><span class="dash__spinner"></span>{{ lang.translate('common.loading') }}</div>
+  } @else if (loadError()) {
+    <div class="card dash__status"><p class="error-text">{{ loadError() }}</p></div>
+  } @else if (data(); as d) {
+    <section class="dash__section" [attr.aria-label]="lang.translate('dashboard.needsAttention')">
+      <h3 class="dash__section-title">
+        {{ lang.translate('dashboard.needsAttention') }}
+        @if (attentionTotal() === 0) {
+          <span class="dash__all-clear"><span class="material-symbols-outlined">check_circle</span>{{ lang.translate('dashboard.allClear') }}</span>
+        }
+      </h3>
+      <div class="dash__attention">
+        <a class="card dash__attn" routerLink="/unanswered-questions" [class.dash__attn--hot]="d.open_unanswered > 0">
+          <span class="material-symbols-outlined dash__attn-icon">contact_support</span>
+          <span class="dash__attn-value">{{ d.open_unanswered }}</span>
+          <span class="dash__attn-label">{{ lang.translate('dashboard.unanswered') }}</span>
+          <span class="dash__attn-cta">{{ lang.translate('dashboard.answerThem') }} <span class="material-symbols-outlined dash__arrow">arrow_forward</span></span>
+        </a>
+        <a class="card dash__attn" routerLink="/answer-feedback" [class.dash__attn--hot]="d.feedback_to_review > 0">
+          <span class="material-symbols-outlined dash__attn-icon">thumb_down</span>
+          <span class="dash__attn-value">{{ d.feedback_to_review }}</span>
+          <span class="dash__attn-label">{{ lang.translate('dashboard.feedbackToReview') }}</span>
+          <span class="dash__attn-cta">{{ lang.translate('dashboard.review') }} <span class="material-symbols-outlined dash__arrow">arrow_forward</span></span>
+        </a>
+        <a class="card dash__attn" routerLink="/support-tickets-admin" [class.dash__attn--hot]="d.pending_tickets > 0">
+          <span class="material-symbols-outlined dash__attn-icon">confirmation_number</span>
+          <span class="dash__attn-value">{{ d.pending_tickets }}</span>
+          <span class="dash__attn-label">{{ lang.translate('dashboard.pendingTickets') }}</span>
+          <span class="dash__attn-cta">{{ lang.translate('dashboard.reply') }} <span class="material-symbols-outlined dash__arrow">arrow_forward</span></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="dash__section">
+      <h3 class="dash__section-title">{{ lang.translate('dashboard.howItWent').replace('{n}', '' + d.days) }}</h3>
+      <div class="dash__stats">
+        <div class="card dash__stat">
+          <span class="dash__stat-label">{{ lang.translate('dashboard.questionsAsked') }}</span>
+          <span class="dash__stat-value">{{ d.questions | number }}</span>
+          @if (questionsTrend(); as t) {
+            <span class="dash__trend" [class.dash__trend--up]="t > 0" [class.dash__trend--down]="t < 0">
+              {{ t > 0 ? '+' : '' }}{{ t }}% {{ lang.translate('dashboard.vsPrevious') }}
+            </span>
+          }
+        </div>
+        <div class="card dash__stat">
+          <span class="dash__stat-label">{{ lang.translate('dashboard.answeredRate') }}</span>
+          <span class="dash__stat-value">{{ d.answered_rate === null ? '—' : d.answered_rate + '%' }}</span>
+          <span class="dash__stat-hint">{{ lang.translate('dashboard.notAnswered').replace('{n}', '' + d.unanswered_in_period) }}</span>
+        </div>
+        <div class="card dash__stat">
+          <span class="dash__stat-label">{{ lang.translate('dashboard.satisfaction') }}</span>
+          <span class="dash__stat-value">{{ d.satisfaction_rate === null ? '—' : d.satisfaction_rate + '%' }}</span>
+          <span class="dash__stat-hint">👍 {{ d.ratings_up }} · 👎 {{ d.ratings_down }}</span>
+        </div>
+        <div class="card dash__stat">
+          <span class="dash__stat-label">{{ lang.translate('dashboard.activeUsers') }}</span>
+          <span class="dash__stat-value">{{ d.active_users | number }}</span>
+        </div>
+      </div>
+
+      <div class="card dash__chart">
+        <div class="dash__chart-title">{{ lang.translate('dashboard.questionsPerDay') }}</div>
+        <div class="dash__bars" role="img" [attr.aria-label]="lang.translate('dashboard.questionsPerDay')">
+          @for (p of d.daily; track p.day) {
+            <div class="dash__bar-col" [title]="(p.day | date: 'mediumDate') + ': ' + p.count">
+              <div class="dash__bar" [style.height.%]="barHeight(p.count)" [class.dash__bar--zero]="p.count === 0"></div>
+            </div>
+          }
+        </div>
+        <div class="dash__chart-axis">
+          <span>{{ d.daily[0]?.day | date: 'MMM d' }}</span>
+          <span>{{ d.daily[d.daily.length - 1]?.day | date: 'MMM d' }}</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="dash__lists">
+      <div class="card dash__list-card">
+        <div class="dash__list-head">
+          <h3>{{ lang.translate('dashboard.latestUnanswered') }}</h3>
+          <a routerLink="/unanswered-questions" class="dash__see-all">{{ lang.translate('dashboard.seeAll') }}</a>
+        </div>
+        @if (d.recent_unanswered.length === 0) {
+          <p class="dash__empty">{{ lang.translate('dashboard.noUnanswered') }}</p>
+        } @else {
+          <ul class="dash__list">
+            @for (q of d.recent_unanswered; track q.id) {
+              <li>
+                <a class="dash__list-item" routerLink="/unanswered-questions">
+                  <span class="dash__list-text" dir="auto">{{ q.question }}</span>
+                  <span class="dash__list-meta">{{ q.user || lang.translate('unanswered.unknownUser') }}@if (q.company_name) { · {{ q.company_name }} } · {{ q.created_at | date: 'MMM d' }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="card dash__list-card">
+        <div class="dash__list-head">
+          <h3>{{ lang.translate('dashboard.latestFeedback') }}</h3>
+          <a routerLink="/answer-feedback" class="dash__see-all">{{ lang.translate('dashboard.seeAll') }}</a>
+        </div>
+        @if (d.recent_feedback.length === 0) {
+          <p class="dash__empty">{{ lang.translate('dashboard.noFeedback') }}</p>
+        } @else {
+          <ul class="dash__list">
+            @for (f of d.recent_feedback; track f.id) {
+              <li>
+                <a class="dash__list-item" routerLink="/answer-feedback">
+                  <span class="dash__list-text" dir="auto">{{ f.question || f.answer }}</span>
+                  <span class="dash__list-meta">{{ f.created_at | date: 'MMM d' }}@if (f.feedback) { · “{{ f.feedback }}” }</span>
+                </a>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      @if (d.top_companies.length > 0) {
+        <div class="card dash__list-card">
+          <div class="dash__list-head">
+            <h3>{{ lang.translate('dashboard.topCompanies') }}</h3>
+            <a routerLink="/analytics" class="dash__see-all">{{ lang.translate('dashboard.seeAll') }}</a>
+          </div>
+          <ul class="dash__list">
+            @for (c of d.top_companies; track c.name) {
+              <li class="dash__company">
+                <span class="dash__list-text">{{ c.name }}</span>
+                <span class="dash__company-count">{{ c.questions | number }}</span>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </section>
+  }
+</div>

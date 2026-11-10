@@ -1,0 +1,54 @@
+<div class="al">
+  <div>
+    <h2>{{ lang.translate('activity.title') }}</h2>
+    <p class="al__subtext">{{ lang.translate('activity.subtitle') }}</p>
+  </div>
+
+  <div class="al__filters">
+    <div class="al__area">
+      <app-dropdown-select [options]="areaOptions()" [value]="area()" (valueChange)="onAreaChange($event)" />
+    </div>
+    <label class="al__search">
+      <span class="material-symbols-outlined">search</span>
+      <input
+        type="search"
+        [placeholder]="lang.translate('activity.searchPlaceholder')"
+        [ngModel]="search()"
+        (ngModelChange)="onSearchChange($event)"
+      />
+    </label>
+  </div>
+
+  <div class="card al__card">
+    @if (isLoading()) {
+      <div class="al__status"><span class="al__spinner"></span>{{ lang.translate('common.loading') }}</div>
+    } @else if (loadError()) {
+      <p class="error-text al__status">{{ loadError() }}</p>
+    } @else if (items().length === 0) {
+      <p class="al__status">{{ lang.translate(search() || area() ? 'activity.noMatches' : 'activity.empty') }}</p>
+    } @else {
+      <ul class="al__list">
+        @for (e of items(); track e.id) {
+          <li class="al__row">
+            <span class="material-symbols-outlined al__icon">{{ icon(e.action) }}</span>
+            <div class="al__body">
+              <div class="al__line">
+                <strong>{{ e.user_name || lang.translate('activity.someone') }}</strong>
+                <span class="al__action">{{ actionLabel(e.action) }}</span>
+              </div>
+              @if (e.summary) {
+                <div class="al__summary" dir="auto">{{ e.summary }}</div>
+              }
+            </div>
+            <time class="al__time" [attr.datetime]="e.created_at">{{ e.created_at | date: 'MMM d, HH:mm' }}</time>
+          </li>
+        }
+      </ul>
+      @if (totalPages() > 1) {
+        <div class="al__pagination">
+          <app-pagination [page]="page()" [totalPages]="totalPages()" [total]="total()" [itemLabel]="lang.translate('activity.itemLabel')" (pageChange)="onPageChange($event)" />
+        </div>
+      }
+    }
+  </div>
+</div>

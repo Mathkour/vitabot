@@ -156,9 +156,9 @@ export class KnowledgeBase implements OnInit, OnDestroy {
   readonly docStagedFiles = signal<File[]>([]);
   readonly docFileLabel = computed(() => {
     const files = this.docStagedFiles();
-    if (files.length === 0) return 'Choose file(s)';
+    if (files.length === 0) return this.lang.translate('kb.chooseFiles');
     if (files.length === 1) return files[0].name;
-    return `${files.length} files selected`;
+    return this.lang.translate('kb.filesSelected').replace('{n}', '' + files.length);
   });
   readonly docStagedFileNames = computed(() =>
     this.docStagedFiles()
@@ -174,7 +174,7 @@ export class KnowledgeBase implements OnInit, OnDestroy {
     ),
   );
   readonly linkedMediaOptions = computed<DropdownOption[]>(() => [
-    { value: '', label: 'None' },
+    { value: '', label: this.lang.translate('kb.none') },
     ...this.linkableMediaItems().map((m) => ({
       value: m.id,
       label: resolveDisplayName(m),
@@ -195,7 +195,11 @@ export class KnowledgeBase implements OnInit, OnDestroy {
   readonly linkType = signal<LinkType>('other');
   readonly linkError = signal<string | null>(null);
   readonly isAddingLink = signal(false);
-  readonly linkTypeOptions = LINK_TYPE_OPTIONS;
+  readonly linkTypeOptions = computed<DropdownOption[]>(() =>
+    LINK_TYPE_OPTIONS.map((o) =>
+      o.value === 'other' ? { ...o, label: this.lang.translate('kb.linkTypeOther') } : o,
+    ),
+  );
 
   readonly linkUrlError = computed(() => {
     const value = this.linkUrl().trim();
@@ -1114,7 +1118,7 @@ export class KnowledgeBase implements OnInit, OnDestroy {
     switch (linkType) {
       case 'youtube': return 'YouTube';
       case 'google_drive': return 'Google Drive';
-      default: return 'Other';
+      default: return this.lang.translate('kb.linkTypeOther');
     }
   }
 
@@ -1162,7 +1166,7 @@ export class KnowledgeBase implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         const detail = err.error?.detail;
         this.categoriesError.set(
-          typeof detail === 'string' ? detail : 'Could not load categories.',
+          typeof detail === 'string' ? detail : this.lang.translate('kb.couldNotLoadCategories'),
         );
       },
     });
@@ -1207,7 +1211,7 @@ export class KnowledgeBase implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         const detail = err.error?.detail;
         this.contentError.set(
-          typeof detail === 'string' ? detail : 'Could not load category content.',
+          typeof detail === 'string' ? detail : this.lang.translate('kb.couldNotLoadContent'),
         );
         this.contentLoading.set(false);
       },
@@ -1232,7 +1236,7 @@ export class KnowledgeBase implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         const detail = err.error?.detail;
         this.sqError.set(
-          typeof detail === 'string' ? detail : 'Could not load suggested questions.',
+          typeof detail === 'string' ? detail : this.lang.translate('kb.couldNotLoadSuggestedQuestions'),
         );
         this.sqLoading.set(false);
       },
@@ -1267,7 +1271,7 @@ export class KnowledgeBase implements OnInit, OnDestroy {
           localId,
           filename: file.name,
           status: 'error',
-          errorMessage: 'Only PDF, Word, Excel, Text, PowerPoint files allowed.',
+          errorMessage: this.lang.translate('kb.unsupportedDocType'),
         },
         ...list,
       ]);
@@ -1298,7 +1302,7 @@ export class KnowledgeBase implements OnInit, OnDestroy {
       error: (err: HttpErrorResponse) => {
         const detail = err.error?.detail;
         const errorMessage =
-          typeof detail === 'string' ? detail : 'Upload failed.';
+          typeof detail === 'string' ? detail : this.lang.translate('kb.uploadFailed');
         this.docUploads.update((list) =>
           list.map((i) =>
             i.localId === localId ? { ...i, status: 'error', errorMessage } : i,

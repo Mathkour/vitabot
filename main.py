@@ -14,7 +14,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from core.security import hash_password
 from core.security import hash_password,verify_password,ALGO,create_access_token,decode_access_token,set_auth_cookie,clear_auth_cookie,ACCESS_TOKEN_COOKIE_NAME
-from core.auth import get_current_tenant , get_current_user_id , get_current_role , require_superadmin , require_admin ,require_vita_care_tenant , VITA_CARE_TENANT_ID , require_admin_or_company_admin , UserScope
+from core.auth import get_current_tenant , get_current_user_id , get_current_role , require_superadmin , require_admin ,require_vita_care_tenant , require_vita_care_admin , VITA_CARE_TENANT_ID , require_admin_or_company_admin , UserScope
 from services.import_users import parse_excel, detect_mapping
 from services.extraction import extract_text,extract_slides_from_pptx
 from services.chunking import chunck_text
@@ -37,11 +37,14 @@ from routers.faq_categories import router as faq_categories_router, validate_cat
 from routers.tenant_analytics import router as tenant_analytics_router
 from routers.companies import router as companies_router
 from routers.support_tickets import router as support_tickets_router
+from routers.answer_feedback import router as answer_feedback_router
+from routers.admin_overview import router as admin_overview_router
 from routers.unanswered_questions import (
     router as unanswered_questions_router, record_unanswered_question, ANSWERS_DOC_FILENAME,
 )
 import time
 from services.migrations import apply_pending_migrations
+from services.activity import log_detached, label_for
 from loguru import logger
 import re
 from pydantic import BaseModel , EmailStr
@@ -156,6 +159,8 @@ app.include_router(tenant_analytics_router)
 app.include_router(companies_router)
 app.include_router(support_tickets_router)
 app.include_router(unanswered_questions_router)
+app.include_router(answer_feedback_router)
+app.include_router(admin_overview_router)
 
 @app.get("/health")
 
@@ -236,6 +241,7 @@ async def create_user(
     request: Request,
     body: CreateUserRequest,
     scope: UserScope = Depends(require_admin_or_company_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     """Authenticated user creation for admins — the counterpart to the
     public POST /register (which is unauthenticated and therefore now
@@ -274,6 +280,7 @@ async def create_user(
             )
         except asyncpg.UniqueViolationError:
             raise HTTPException(status_code=409, detail="Email or username already exist")
+    await log_detached(scope.tenant_id, actor_id, 'user.create', f'{body.email} ({body.role})')
     return dict(row)
 
 
@@ -287,7 +294,9 @@ async def update_user(
     user_id: str,
     body: UpdateUserRequest,
     scope: UserScope = Depends(require_admin_or_company_admin),
+    current_user_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(scope.tenant_id, "SELECT COALESCE(username, email) FROM users WHERE id = $1 AND tenant_id = $2", user_id, scope.tenant_id)
     tenant_id = scope.tenant_id
     async with db.tenant_connection(tenant_id) as conn:
         target = await conn.fetchrow(
@@ -326,6 +335,20 @@ async def update_user(
             raise HTTPException(status_code=400, detail=f"role must be one of {sorted(_ADMIN_ASSIGNABLE_ROLES)}")
         role = body.role if "role" in fields_sent else target["role"]
         company_id = body.company_id if "company_id" in fields_sent else target["company_id"]
+        if role != target["role"]:
+            # Guards against an admin locking the tenant out of its own
+            # admin pages: never your own role, never the last admin.
+            if str(target["id"]) == str(current_user_id):
+                raise HTTPException(status_code=400, detail="You can't change your own role")
+            if target["role"] == "admin":
+                other_admins = await conn.fetchval(
+                    "SELECT count(*) FROM users WHERE tenant_id = $1 AND role = 'admin' AND id <> $2",
+                    tenant_id, user_id,
+                )
+                if not other_admins:
+                    raise HTTPException(status_code=400, detail="This is the only admin; make someone else admin first")
+        if role == "company_admin" and not company_id:
+            raise HTTPException(status_code=400, detail="A company admin must belong to a company")
         if company_id:
             owner = await conn.fetchval(
                 "SELECT 1 FROM companies WHERE id = $1 AND tenant_id = $2", company_id, tenant_id,
@@ -337,6 +360,7 @@ async def update_user(
             "UPDATE users SET role = $1, company_id = $2 WHERE id = $3 AND tenant_id = $4",
             role, company_id, user_id, tenant_id,
         )
+    await log_detached(scope.tenant_id, current_user_id, 'user.update', _label + (f' → role {body.role}' if body.role else '') + (' → company changed' if 'company_id' in body.model_fields_set else ''))
     return {"status": "updated"}
 
 
@@ -344,7 +368,9 @@ async def update_user(
 async def delete_user(
     user_id: str,
     scope: UserScope = Depends(require_admin_or_company_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(scope.tenant_id, "SELECT COALESCE(username, email) FROM users WHERE id = $1 AND tenant_id = $2", user_id, scope.tenant_id)
     tenant_id = scope.tenant_id
     async with db.tenant_connection(tenant_id) as conn:
         target = await conn.fetchrow(
@@ -361,6 +387,7 @@ async def delete_user(
         )
     if result == "DELETE 0":
         raise HTTPException(status_code=404, detail="User not found")
+    await log_detached(scope.tenant_id, actor_id, 'user.delete', _label)
     return {"status": "deleted"}
     
 
@@ -1042,6 +1069,7 @@ async def upload_document(
     linked_media_id: str | None = Form(None),
     display_name: str | None = Form(None),
     tenant_id: str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     allowed = (".pdf",".docx",".xlsx",".txt",".pptx",".ppt")
     if not file.filename.lower().endswith(allowed):
@@ -1110,6 +1138,7 @@ async def upload_document(
                 document_id,tenant_id,
             )
 
+        await log_detached(tenant_id, actor_id, 'document.upload', file.filename)
         return{
             "document_id":str(document_id),
             "filename":file.filename,
@@ -1173,6 +1202,7 @@ async def upload_document(
                 "UPDATE documents SET status = 'ready' WHERE id = $1 AND tenant_id = $2",
                 document_id,tenant_id,
             )
+        await log_detached(tenant_id, actor_id, 'document.upload', file.filename)
         return{
             "document_id":str(document_id),
             "filename":file.filename,
@@ -1218,6 +1248,7 @@ async def upload_document(
             document_id, tenant_id,
         )
 
+    await log_detached(tenant_id, actor_id, 'document.upload', file.filename)
     return {
         "document_id": str(document_id),
         "filename": file.filename,
@@ -1424,8 +1455,10 @@ def _extract_media_keywords(text: str | None) -> set[str]:
 async def delete_document(
     document_id:str,
     tenant_id:str=Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 
 ):
+    _label = await label_for(tenant_id, "SELECT COALESCE(display_name, filename) FROM documents WHERE id = $1 AND tenant_id = $2", document_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
         row = await conn.fetchrow(
             "DELETE FROM documents WHERE id = $1 AND tenant_id = $2 RETURNING file_path",
@@ -1435,6 +1468,7 @@ async def delete_document(
         raise HTTPException (status_code=404,detail="Document not found")
     if storage.is_cloud_ref(row["file_path"]):
         await storage.delete(row["file_path"], "raw")
+    await log_detached(tenant_id, actor_id, 'document.delete', _label)
     return{"status":"deleted"}
 
 class RenameRequest(BaseModel):
@@ -1445,6 +1479,7 @@ async def rename_document(
     document_id: str,
     body: RenameRequest,
     tenant_id: str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     display_name_ar = _translate_ar_safe(body.display_name, tenant_id=tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
@@ -1454,6 +1489,7 @@ async def rename_document(
         )
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="Document not found")
+    await log_detached(tenant_id, actor_id, 'document.rename', body.display_name)
     return {"status": "updated"}
 
 @app.get("/documents/file/{document_id}")
@@ -1523,7 +1559,7 @@ class ExcelRowRequest(BaseModel):
 async def create_excel_row(
     document_id: str,
     body: ExcelRowRequest,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
 ):
     async with db.tenant_connection(tenant_id) as conn:
         doc = await conn.fetchrow(
@@ -1559,7 +1595,7 @@ async def create_excel_row(
 async def update_excel_row(
     row_id: str,
     body: ExcelRowRequest,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
 ):
     async with db.tenant_connection(tenant_id) as conn:
         existing = await conn.fetchrow(
@@ -1589,7 +1625,7 @@ async def update_excel_row(
 @app.delete("/excel-rows/{row_id}")
 async def delete_excel_row(
     row_id: str,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
 ):
     async with db.tenant_connection(tenant_id) as conn:
         existing = await conn.fetchrow(
@@ -1944,7 +1980,8 @@ async def upload_media(
     description:str = Form(...),
     category_id:str = Form(...),
     display_name: str | None = Form(None),
-    tenant_id:str =Depends(require_admin)
+    tenant_id:str =Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id)
 ):
     name = file.filename.lower()
     if name.endswith((".mp4",".mov",".webm",".vid")):
@@ -2002,6 +2039,7 @@ async def upload_media(
 
             tenant_id,file.filename,file_path,media_type,description,embedding_str,category_id,display_name,description_ar,display_name_ar,
         )
+    await log_detached(tenant_id, actor_id, 'media.upload', file.filename)
     return dict(row)
 
 @app.get("/media/file/{media_id}")
@@ -2073,6 +2111,7 @@ async def transcribe(
 async def create_category(
     body:CategoryRequest,
     tenant_id:str=Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 
 ):
     async with db.tenant_connection(tenant_id) as conn :
@@ -2084,6 +2123,7 @@ async def create_category(
             )
         except asyncpg.UniqueViolationError:
             raise HTTPException(status_code=409,detail="Category already exists")
+        await log_detached(tenant_id, actor_id, 'category.create', body.name)
         return dict(row)
     
 @app.get("/categories")
@@ -2111,7 +2151,9 @@ async def list_categories(
 async def delete_category(
     category_id:str,
     tenant_id:str=Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(tenant_id, "SELECT name FROM categories WHERE id = $1 AND tenant_id = $2", category_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
 
         media_rows=await conn.fetch(
@@ -2131,6 +2173,7 @@ async def delete_category(
         elif os.path.exists(path):
             os.remove(path)
 
+    await log_detached(tenant_id, actor_id, 'category.delete', _label)
     return {"status":"deleted"}
 
 @app.get("/categories/{category_id}/content")
@@ -2264,7 +2307,9 @@ async def edit_suggested_question(
 async def delete_media(
     media_id: str,
     tenant_id: str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(tenant_id, "SELECT COALESCE(display_name, filename, description) FROM media WHERE id = $1 AND tenant_id = $2", media_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
         row = await conn.fetchrow(
             "SELECT file_path, media_type FROM media WHERE id = $1 AND tenant_id = $2",
@@ -2280,6 +2325,7 @@ async def delete_media(
     elif path and os.path.exists(path):
         os.remove(path)
 
+    await log_detached(tenant_id, actor_id, 'media.delete', _label)
     return {"status": "deleted"}
 
 
@@ -2304,7 +2350,9 @@ async def rename_media(
 async def publish_category(
     category_id: str,
     tenant_id: str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(tenant_id, "SELECT name FROM categories WHERE id = $1 AND tenant_id = $2", category_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
         docs = await conn.fetchval(
             "SELECT COUNT(*) FROM documents WHERE category_id = $1 AND tenant_id = $2", category_id, tenant_id,
@@ -2325,6 +2373,7 @@ async def publish_category(
         await conn.execute(
             "UPDATE categories SET is_published = true WHERE id = $1 AND tenant_id = $2", category_id, tenant_id,
         )
+    await log_detached(tenant_id, actor_id, 'category.publish', _label)
     return {"status": "published"}
 
 
@@ -2332,11 +2381,14 @@ async def publish_category(
 async def unpublish_category(
     category_id: str,
     tenant_id: str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(tenant_id, "SELECT name FROM categories WHERE id = $1 AND tenant_id = $2", category_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
         await conn.execute(
             "UPDATE categories SET is_published = false WHERE id = $1 AND tenant_id = $2", category_id, tenant_id,
         )
+    await log_detached(tenant_id, actor_id, 'category.unpublish', _label)
     return {"status": "unpublished"}
 
 class SuggestedQuestionRequest(BaseModel):
@@ -2527,7 +2579,7 @@ async def update_phone(
 @app.post("/users/import/preview")
 async def import_users_preview(
     file: UploadFile = File(...),
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
 ):
     if not file.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Only Excel files (.xlsx) are supported")
@@ -2567,7 +2619,8 @@ class MediaLinkRequest(BaseModel):
 @app.post("/media/link")
 async def add_media_link(
     body:MediaLinkRequest,
-    tenant_id:str = Depends(get_current_tenant),
+    tenant_id:str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     bilingual_description =translate_text(body.description, tenant_id=tenant_id)
     embedding=await get_embedding(bilingual_description)
@@ -2585,6 +2638,7 @@ async def add_media_link(
             """,
             tenant_id,"external_link","",body.description,embedding_str,body.category_id,body.url,body.link_type,body.display_name,description_ar,display_name_ar,
         )
+        await log_detached(tenant_id, actor_id, 'media.add_link', body.description or body.url)
         return dict(row)
     
 class ImportMapping(BaseModel):
@@ -2600,7 +2654,8 @@ class ImportConfirmRequest(BaseModel):
 @app.post("/users/import/confirm")
 async def import_users_confirm(
     body:ImportConfirmRequest,
-    tenant_id:str = Depends(get_current_tenant),
+    tenant_id:str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     default_password="Welcom123!"
     hashed=hash_password(default_password)
@@ -2641,6 +2696,7 @@ async def import_users_confirm(
             except Exception:
                 skipped +=1
 
+        await log_detached(tenant_id, actor_id, 'user.import', f'{len(body.rows)} rows')
         return{
             "status":"done",
             "created":created,
@@ -2777,7 +2833,8 @@ async def list_faq(tenant_id: str = Depends(get_current_tenant)):
 @app.post("/faq")
 async def create_faq_item(
     body: FaqItemRequest,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     question, answer, question_ar, answer_ar = _resolve_faq_bilingual_fields(
         body.question, body.answer, body.question_ar, body.answer_ar, tenant_id=tenant_id,
@@ -2792,6 +2849,7 @@ async def create_faq_item(
             """,
             tenant_id, question, answer, question_ar, answer_ar, body.category_id,
         )
+        await log_detached(tenant_id, actor_id, 'faq.create', (body.question or body.question_ar or ''))
         return dict(row)
 
 
@@ -2799,7 +2857,8 @@ async def create_faq_item(
 async def update_faq_item(
     faq_id: str,
     body: FaqItemRequest,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     question, answer, question_ar, answer_ar = _resolve_faq_bilingual_fields(
         body.question, body.answer, body.question_ar, body.answer_ar, tenant_id=tenant_id,
@@ -2812,14 +2871,17 @@ async def update_faq_item(
         )
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="FAQ item not found")
+    await log_detached(tenant_id, actor_id, 'faq.update', (body.question or body.question_ar or ''))
     return {"status": "updated"}
 
 
 @app.delete("/faq/{faq_id}")
 async def delete_faq_item(
     faq_id: str,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(tenant_id, "SELECT COALESCE(question, question_ar) FROM faq_items WHERE id = $1 AND tenant_id = $2", faq_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
         result = await conn.execute(
             "DELETE FROM faq_items WHERE id = $1 AND tenant_id = $2",
@@ -2827,6 +2889,7 @@ async def delete_faq_item(
         )
     if result == "DELETE 0":
         raise HTTPException(status_code=404, detail="FAQ item not found")
+    await log_detached(tenant_id, actor_id, 'faq.delete', _label)
     return {"status": "deleted"}
 
 
@@ -2843,7 +2906,8 @@ async def list_error_solutions(tenant_id: str = Depends(require_vita_care_tenant
 @app.post("/error-solutions")
 async def create_error_solution(
     body: ErrorSolutionRequest,
-    tenant_id: str = Depends(require_vita_care_tenant),
+    tenant_id: str = Depends(require_vita_care_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     error_text_ar = _translate_ar_safe(body.error_text, tenant_id=tenant_id)
     solution_text_ar = _translate_ar_safe(body.solution_text, tenant_id=tenant_id)
@@ -2857,6 +2921,7 @@ async def create_error_solution(
             """,
             tenant_id, body.error_text, body.solution_text, error_text_ar, solution_text_ar, body.category_id,
         )
+        await log_detached(tenant_id, actor_id, 'error_solution.create', body.error_text)
         return dict(row)
 
 
@@ -2864,7 +2929,8 @@ async def create_error_solution(
 async def update_error_solution(
     error_solution_id: str,
     body: ErrorSolutionRequest,
-    tenant_id: str = Depends(require_vita_care_tenant),
+    tenant_id: str = Depends(require_vita_care_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     error_text_ar = _translate_ar_safe(body.error_text, tenant_id=tenant_id)
     solution_text_ar = _translate_ar_safe(body.solution_text, tenant_id=tenant_id)
@@ -2876,14 +2942,17 @@ async def update_error_solution(
         )
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="Error solution not found")
+    await log_detached(tenant_id, actor_id, 'error_solution.update', body.error_text)
     return {"status": "updated"}
 
 
 @app.delete("/error-solutions/{error_solution_id}")
 async def delete_error_solution(
     error_solution_id: str,
-    tenant_id: str = Depends(require_vita_care_tenant),
+    tenant_id: str = Depends(require_vita_care_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
+    _label = await label_for(tenant_id, "SELECT error_text FROM error_solutions WHERE id = $1 AND tenant_id = $2", error_solution_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
         result = await conn.execute(
             "DELETE FROM error_solutions WHERE id = $1 AND tenant_id = $2",
@@ -2891,13 +2960,15 @@ async def delete_error_solution(
         )
     if result == "DELETE 0":
         raise HTTPException(status_code=404, detail="Error solution not found")
+    await log_detached(tenant_id, actor_id, 'error_solution.delete', _label)
     return {"status": "deleted"}
 
 
 @app.post("/error-solutions/import-excel")
 async def import_error_solutions_excel(
     file: UploadFile = File(...),
-    tenant_id: str = Depends(require_vita_care_tenant),
+    tenant_id: str = Depends(require_vita_care_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     if not file.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Only Excel files (.xlsx) are supported")
@@ -2930,6 +3001,7 @@ async def import_error_solutions_excel(
             except Exception:
                 skipped += 1
 
+        await log_detached(tenant_id, actor_id, 'error_solution.import', file.filename)
         return {
             "status": "done",
             "created": created,
@@ -3111,7 +3183,7 @@ async def list_odoo_suggested_questions(tenant_id: str = Depends(require_vita_ca
 @app.post("/odoo/suggested-questions")
 async def add_odoo_suggested_question(
     body: OdooSuggestedQuestionRequest,
-    tenant_id: str = Depends(require_vita_care_tenant),
+    tenant_id: str = Depends(require_vita_care_admin),
 ):
     question_en, _, auto_question_ar, _ = _translate_question_pair(body.question, "", tenant_id=tenant_id)
     question_ar = body.question_ar or auto_question_ar
@@ -3131,7 +3203,7 @@ async def add_odoo_suggested_question(
 @app.delete("/odoo/suggested-questions/{question_id}")
 async def delete_odoo_suggested_question(
     question_id: str,
-    tenant_id: str = Depends(require_vita_care_tenant),
+    tenant_id: str = Depends(require_vita_care_admin),
 ):
     async with db.tenant_connection(tenant_id) as conn:
         result = await conn.execute(

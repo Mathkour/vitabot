@@ -71,6 +71,18 @@ export class Users implements OnInit {
   readonly editingCompanyUserId = signal<string | null>(null);
   readonly editingCompanyId = signal<string>('');
   readonly isSavingCompany = signal(false);
+
+  /** Inline role change, tenant admin only, never on your own row (the
+   * backend refuses that too, along with demoting the last admin). */
+  readonly editingRoleUserId = signal<string | null>(null);
+  readonly editingRole = signal<string>('member');
+  readonly isSavingRole = signal(false);
+  readonly roleError = signal<string | null>(null);
+  readonly roleOptions = computed<DropdownOption[]>(() => [
+    { value: 'member', label: this.lang.translate('users.roleMember') },
+    { value: 'admin', label: this.lang.translate('users.roleAdmin') },
+    { value: 'company_admin', label: this.lang.translate('users.roleCompanyAdmin') },
+  ]);
   readonly searchTerm = signal('');
   readonly page = signal(1);
   readonly total = signal(0);
@@ -125,7 +137,51 @@ export class Users implements OnInit {
   }
 
   roleBadgeClass(role: string): string {
-    return role === 'admin' ? 'pill-info' : 'pill-success';
+    return role === 'admin' ? 'pill-info' : role === 'company_admin' ? 'pill-warning' : 'pill-success';
+  }
+
+  roleLabel(role: string): string {
+    const key = { admin: 'users.roleAdmin', company_admin: 'users.roleCompanyAdmin', member: 'users.roleMember' }[role];
+    return key ? this.lang.translate(key) : role;
+  }
+
+  isSelf(user: CompanyUser): boolean {
+    const me = this.authService.currentUser().email;
+    return !!me && me.toLowerCase() === user.email.toLowerCase();
+  }
+
+  startEditRole(user: CompanyUser): void {
+    this.editingRoleUserId.set(user.id);
+    this.editingRole.set(user.role);
+    this.roleError.set(null);
+  }
+
+  cancelEditRole(): void {
+    this.editingRoleUserId.set(null);
+    this.roleError.set(null);
+  }
+
+  saveEditRole(user: CompanyUser): void {
+    if (this.isSavingRole()) return;
+    const role = this.editingRole();
+    if (role === user.role) {
+      this.cancelEditRole();
+      return;
+    }
+    this.isSavingRole.set(true);
+    this.roleError.set(null);
+    this.usersService.update(user.id, { role }).subscribe({
+      next: () => {
+        this.isSavingRole.set(false);
+        this.cancelEditRole();
+        this.loadUsers();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isSavingRole.set(false);
+        const detail = err.error?.detail;
+        this.roleError.set(typeof detail === 'string' ? detail : this.lang.translate('users.couldNotChangeRole'));
+      },
+    });
   }
 
   openModal(): void {

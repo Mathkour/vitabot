@@ -13,7 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import db
-from core.auth import require_vita_care_admin
+from services.activity import label_for, log_detached
+from core.auth import get_current_user_id, require_vita_care_admin
 from services.company_slug import normalize_company_slug
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -27,6 +28,7 @@ class CompanyRequest(BaseModel):
 async def create_company(
     body: CompanyRequest,
     tenant_id: str = Depends(require_vita_care_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     name = body.name.strip()
     if not name:
@@ -45,6 +47,7 @@ async def create_company(
             )
         except asyncpg.UniqueViolationError:
             raise HTTPException(status_code=409, detail="A company with this name already exists")
+    await log_detached(tenant_id, actor_id, 'company.create', name)
     return dict(row)
 
 
@@ -70,6 +73,7 @@ async def rename_company(
     company_id: str,
     body: CompanyRequest,
     tenant_id: str = Depends(require_vita_care_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     name = body.name.strip()
     if not name:
@@ -84,6 +88,7 @@ async def rename_company(
             raise HTTPException(status_code=409, detail="A company with this name already exists")
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="Company not found")
+    await log_detached(tenant_id, actor_id, 'company.rename', name)
     return {"status": "updated"}
 
 
@@ -91,10 +96,12 @@ async def rename_company(
 async def delete_company(
     company_id: str,
     tenant_id: str = Depends(require_vita_care_admin),
+    actor_id: str = Depends(get_current_user_id),
 ):
     # Users in this company are not deleted — company_id just falls back to
     # NULL (ON DELETE SET NULL, see the migration) so they become
     # "unassigned" rather than disappearing.
+    _label = await label_for(tenant_id, "SELECT name FROM companies WHERE id = $1 AND tenant_id = $2", company_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
         result = await conn.execute(
             "DELETE FROM companies WHERE id = $1 AND tenant_id = $2",
@@ -102,4 +109,5 @@ async def delete_company(
         )
     if result == "DELETE 0":
         raise HTTPException(status_code=404, detail="Company not found")
+    await log_detached(tenant_id, actor_id, 'company.delete', _label)
     return {"status": "deleted"}

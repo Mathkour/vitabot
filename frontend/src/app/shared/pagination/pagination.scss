@@ -46,3 +46,8 @@
   font-size: 12px;
   color: var(--color-text-secondary);
 }
+
+// Previous/next chevrons point the reading direction in Arabic too.
+:host-context([dir='rtl']) .pagination__btn .material-symbols-outlined {
+  transform: scaleX(-1);
+}

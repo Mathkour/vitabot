@@ -30,11 +30,16 @@
     transition: transform 0.25s ease;
     box-shadow: var(--shadow-card);
 
-    [dir='rtl'] & {
+    // :host-context, not a plain [dir='rtl'] ancestor selector: Angular's
+    // style encapsulation also scopes the ancestor part, so that never
+    // matched and the closed sidebar sat half on screen in Arabic.
+    :host-context([dir='rtl']) & {
       transform: translateX(100%);
     }
 
-    &.sidebar--open {
+    // Same specificity as the RTL rule above, so opening wins in Arabic too.
+    &.sidebar--open,
+    :host-context([dir='rtl']) &.sidebar--open {
       transform: translateX(0);
     }
   }
@@ -44,7 +49,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 8px 32px;
+  padding: 0 8px 24px;
   direction: ltr;
   cursor: pointer;
 }
@@ -78,14 +83,36 @@
 .sidebar__nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 14px;
+  // Grouped menu can be taller than short screens; scroll the links, not the page.
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -8px;
+  padding: 0 8px;
+  scrollbar-width: thin;
+}
+
+.sidebar__section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar__section-title {
+  padding: 0 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .sidebar__link {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 12px;
+  padding: 9px 12px;
   border-radius: var(--radius-control);
   color: rgba(255, 255, 255, 0.7);
   text-decoration: none;

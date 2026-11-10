@@ -1,12 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { forkJoin } from 'rxjs';
+import { RouterLink } from '@angular/router';
+import { catchError, forkJoin, of } from 'rxjs';
+import { CompanyAnalyticsRow } from '../../../core/models/admin-overview.models';
 import {
   SatisfactionStats,
   TenantAnalyticsTimeseriesPoint,
   TopQuestionEntry,
   WeakAnswerEntry,
 } from '../../../core/models/tenant-analytics.models';
+import { AdminOverviewService, downloadCsv } from '../../../core/services/admin-overview.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { TenantAnalyticsService } from '../../../core/services/tenant-analytics.service';
 
@@ -30,12 +33,13 @@ interface ChartGeometry {
 
 @Component({
   selector: 'app-analytics',
-  imports: [],
+  imports: [RouterLink],
   templateUrl: './analytics.html',
   styleUrl: './analytics.scss',
 })
 export class Analytics implements OnInit {
   private readonly analyticsService = inject(TenantAnalyticsService);
+  private readonly overview = inject(AdminOverviewService);
   readonly lang = inject(LanguageService);
 
   readonly range = signal<RangeOption>(7);
@@ -45,6 +49,7 @@ export class Analytics implements OnInit {
   readonly weakAnswers = signal<WeakAnswerEntry[]>([]);
   readonly satisfaction = signal<SatisfactionStats | null>(null);
   readonly timeseries = signal<TenantAnalyticsTimeseriesPoint[]>([]);
+  readonly companies = signal<CompanyAnalyticsRow[]>([]);
 
   readonly isLoading = signal(false);
   readonly loadError = signal<string | null>(null);
@@ -101,6 +106,28 @@ export class Analytics implements OnInit {
     this.load();
   }
 
+  companyName(row: CompanyAnalyticsRow): string {
+    return row.name ?? this.lang.translate('users.noCompany');
+  }
+
+  exportTopQuestions(): void {
+    downloadCsv(`top-questions-${this.range()}d.csv`,
+      [this.lang.translate('tenantAnalytics.colQuestion'), this.lang.translate('tenantAnalytics.colCount')],
+      this.topQuestions().map((r) => [r.question, r.count]));
+  }
+
+  exportWeakAnswers(): void {
+    downloadCsv(`weak-answers-${this.range()}d.csv`,
+      [this.lang.translate('tenantAnalytics.colQuestion'), this.lang.translate('tenantAnalytics.colCount'), this.lang.translate('tenantAnalytics.colLastSeen')],
+      this.weakAnswers().map((r) => [r.question, r.count, r.last_seen]));
+  }
+
+  exportCompanies(): void {
+    downloadCsv(`companies-${this.range()}d.csv`,
+      ['company', 'users', 'active_users', 'questions', 'unanswered', 'thumbs_up', 'thumbs_down'].map((k) => this.lang.translate('tenantAnalytics.col.' + k)),
+      this.companies().map((r) => [this.companyName(r), r.users, r.active_users, r.questions, r.unanswered, r.thumbs_up, r.thumbs_down]));
+  }
+
   selectRange(range: RangeOption): void {
     if (range === this.range()) return;
     this.range.set(range);
@@ -136,8 +163,11 @@ export class Analytics implements OnInit {
       weakAnswers: this.analyticsService.getWeakAnswers(days),
       satisfaction: this.analyticsService.getSatisfaction(days),
       timeseries: this.analyticsService.getTimeseries(days, 'day'),
+      // The per-company table is extra: if it fails the rest of the page still shows.
+      companies: this.overview.companyAnalytics(days).pipe(catchError(() => of([] as CompanyAnalyticsRow[]))),
     }).subscribe({
-      next: ({ topQuestions, weakAnswers, satisfaction, timeseries }) => {
+      next: ({ topQuestions, weakAnswers, satisfaction, timeseries, companies }) => {
+        this.companies.set(companies);
         this.topQuestions.set(topQuestions);
         this.weakAnswers.set(weakAnswers);
         this.satisfaction.set(satisfaction);

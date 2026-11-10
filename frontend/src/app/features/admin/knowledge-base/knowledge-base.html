@@ -2,7 +2,7 @@
   <!-- Left: Categories panel -->
   <aside class="kb__aside">
     <div class="kb__aside-top">
-      <h2 class="kb__aside-title">Knowledge Base</h2>
+      <h2 class="kb__aside-title">{{ lang.translate('kb.title') }}</h2>
 
       @if (addCategoryError()) {
         <p class="error-text kb__add-error">{{ addCategoryError() }}</p>
@@ -12,7 +12,7 @@
         <input
           class="kb__add-input"
           type="text"
-          placeholder="New category..."
+          [placeholder]="lang.translate('kb.newCategoryPlaceholder')"
           [ngModel]="newCategoryName()"
           (ngModelChange)="newCategoryName.set($event)"
           (keydown.enter)="addCategory()"
@@ -22,7 +22,7 @@
           class="btn btn-primary kb__add-btn"
           [disabled]="isAddingCategory() || !newCategoryName().trim()"
           (click)="addCategory()"
-          title="Add category"
+          [title]="lang.translate('kb.addCategoryTitle')"
         >
           <span class="material-symbols-outlined">add</span>
         </button>
@@ -32,7 +32,7 @@
     @if (categoriesError()) {
       <p class="error-text kb__aside-error">{{ categoriesError() }}</p>
     } @else if (categories().length === 0) {
-      <p class="kb__aside-empty">No categories yet. Add one above.</p>
+      <p class="kb__aside-empty">{{ lang.translate('kb.noCategoriesYet') }}</p>
     } @else {
       <ul class="kb__cat-list">
         @for (cat of categories(); track cat.id) {
@@ -55,7 +55,7 @@
                 <button
                   type="button"
                   class="kb__delete-btn kb__delete-btn--confirm"
-                  title="Save"
+                  [title]="lang.translate('kb.save')"
                   [disabled]="isRenamingCategory() || !editCategoryName().trim()"
                   (click)="$event.stopPropagation(); saveRenameCategory(cat)"
                 >
@@ -64,7 +64,7 @@
                 <button
                   type="button"
                   class="kb__delete-btn"
-                  title="Cancel"
+                  [title]="lang.translate('kb.cancel')"
                   [disabled]="isRenamingCategory()"
                   (click)="$event.stopPropagation(); cancelRenameCategory()"
                 >
@@ -76,7 +76,7 @@
                   <button
                     type="button"
                     class="kb__cat-lock-btn"
-                    title="Rename category"
+                    [title]="lang.translate('kb.renameCategory')"
                     (click)="$event.stopPropagation(); startRenameCategory(cat)"
                   >
                     <span class="material-symbols-outlined">edit</span>
@@ -87,7 +87,7 @@
                     [class.kb__cat-lock-btn--published]="cat.is_published"
                     [class.kb__cat-lock-btn--draft]="!cat.is_published"
                     [disabled]="togglingPublishIds().has(cat.id)"
-                    [title]="cat.is_published ? 'Published — click to unpublish' : 'Draft — click to publish'"
+                    [title]="lang.translate(cat.is_published ? 'kb.publishedClickToUnpublish' : 'kb.draftClickToPublish')"
                     (click)="$event.stopPropagation(); cat.is_published ? unpublishCategory(cat) : publishCategory(cat)"
                   >
                     <span class="material-symbols-outlined">
@@ -115,7 +115,7 @@
     @if (!selectedCategory()) {
       <div class="kb__empty-state">
         <span class="material-symbols-outlined kb__empty-icon">folder_open</span>
-        <p>Select a category to view and manage its files.</p>
+        <p>{{ lang.translate('kb.selectCategoryPrompt') }}</p>
       </div>
     } @else {
       <div class="kb__detail">
@@ -128,7 +128,7 @@
             (click)="deleteCategory(selectedCategory()!)"
           >
             <span class="material-symbols-outlined">delete_forever</span>
-            Delete Category
+            {{ lang.translate('kb.deleteCategory') }}
           </button>
         </div>
 
@@ -145,7 +145,7 @@
             (click)="setActiveTab('manage')"
           >
             <span class="material-symbols-outlined">edit_note</span>
-            Manage
+            {{ lang.translate('kb.tabManage') }}
           </button>
           <button
             type="button"
@@ -154,7 +154,7 @@
             (click)="setActiveTab('library')"
           >
             <span class="material-symbols-outlined">video_library</span>
-            Library
+            {{ lang.translate('kb.tabLibrary') }}
           </button>
         </div>
 
@@ -163,15 +163,15 @@
           <div class="card kb__upload-card kb__upload-card--file">
             <div class="kb__upload-card-hd">
               <span class="material-symbols-outlined">description</span>
-              <strong>Upload File</strong>
+              <strong>{{ lang.translate('kb.uploadFile') }}</strong>
             </div>
-            <p class="kb__upload-hint">PDF, Word (.docx), Excel (.xlsx), Text (.txt), PowerPoint (.pptx)</p>
+            <p class="kb__upload-hint">{{ lang.translate('kb.uploadFileHint') }}</p>
 
             <div class="kb__doc-controls">
               <label
                 class="btn btn-secondary kb__file-label kb__file-label--grow"
                 [class.kb__file-label--disabled]="isUploadingAny()"
-                [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+                [title]="isUploadingAny() ? lang.translate('kb.waitForUpload') : ''"
               >
                 <span class="material-symbols-outlined">upload_file</span>
                 {{ docFileLabel() }}
@@ -188,7 +188,7 @@
               <input
                 class="kb__media-desc kb__doc-controls-input"
                 type="text"
-                placeholder="Display name (optional)"
+                [placeholder]="lang.translate('kb.displayNameOptional')"
                 [ngModel]="docDisplayName()"
                 (ngModelChange)="docDisplayName.set($event)"
                 [disabled]="isUploadingAny()"
@@ -208,22 +208,22 @@
                 type="button"
                 class="btn btn-primary"
                 [disabled]="docStagedFiles().length === 0 || isUploadingAny()"
-                [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+                [title]="isUploadingAny() ? lang.translate('kb.waitForUpload') : ''"
                 (click)="submitDocUpload()"
               >
                 <span class="material-symbols-outlined">upload</span>
-                {{ isDocUploading() ? 'Uploading...' : 'Upload' }}
+                {{ isDocUploading() ? lang.translate('kb.uploadingEllipsis') : lang.translate('kb.upload') }}
               </button>
             </div>
 
             @if (docStagedFiles().length > 1) {
-              <p class="kb__upload-queue-hint">Selected: {{ docStagedFileNames() }}</p>
+              <p class="kb__upload-queue-hint">{{ lang.translate('kb.selectedFiles').replace('{names}', docStagedFileNames()) }}</p>
             }
             @if (linkableMediaItems().length === 0) {
-              <p class="kb__upload-hint">No videos/links in this category yet to link to.</p>
+              <p class="kb__upload-hint">{{ lang.translate('kb.noLinkableMedia') }}</p>
             }
             @if (isDocUploading() && docQueueLength() > 0) {
-              <p class="kb__upload-queue-hint">+{{ docQueueLength() }} more queued</p>
+              <p class="kb__upload-queue-hint">+{{ docQueueLength() }} {{ lang.translate('kb.moreQueued') }}</p>
             }
           </div>
 
@@ -233,7 +233,7 @@
             <div class="card kb__upload-card">
               <div class="kb__upload-card-hd">
                 <span class="material-symbols-outlined">perm_media</span>
-                <strong>Upload Media</strong>
+                <strong>{{ lang.translate('kb.uploadMedia') }}</strong>
               </div>
               <p class="kb__upload-hint">MP4, MOV, WebM, JPG, PNG, GIF, WebP</p>
 
@@ -244,14 +244,14 @@
               @if (isUploadingMedia()) {
                 <div class="kb__media-progress">
                   <span class="kb__spinner"></span>
-                  Uploading {{ mediaFile()?.name }}...
+                  {{ lang.translate('kb.uploadingFile').replace('{name}', mediaFile()?.name ?? '') }}
                 </div>
               }
 
               <input
                 class="kb__media-desc"
                 type="text"
-                placeholder="Description (required)"
+                [placeholder]="lang.translate('kb.descriptionRequired')"
                 [ngModel]="mediaDescription()"
                 (ngModelChange)="mediaDescription.set($event)"
                 [disabled]="isUploadingAny()"
@@ -259,7 +259,7 @@
               <input
                 class="kb__media-desc"
                 type="text"
-                placeholder="Display name (optional)"
+                [placeholder]="lang.translate('kb.displayNameOptional')"
                 [ngModel]="mediaDisplayName()"
                 (ngModelChange)="mediaDisplayName.set($event)"
                 [disabled]="isUploadingAny()"
@@ -269,10 +269,10 @@
                 <label
                   class="btn btn-secondary kb__file-label kb__file-label--grow"
                   [class.kb__file-label--disabled]="isUploadingAny()"
-                  [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+                  [title]="isUploadingAny() ? lang.translate('kb.waitForUpload') : ''"
                 >
                   <span class="material-symbols-outlined">attach_file</span>
-                  {{ mediaFile() ? mediaFile()!.name : 'Choose file' }}
+                  {{ mediaFile() ? mediaFile()!.name : lang.translate('kb.chooseFile') }}
                   <input
                     type="file"
                     class="kb__file-input"
@@ -285,11 +285,11 @@
                   type="button"
                   class="btn btn-primary"
                   [disabled]="!mediaFile() || !mediaDescription().trim() || isUploadingAny()"
-                  [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+                  [title]="isUploadingAny() ? lang.translate('kb.waitForUpload') : ''"
                   (click)="submitMedia()"
                 >
                   <span class="material-symbols-outlined">upload</span>
-                  {{ isUploadingMedia() ? 'Uploading...' : 'Upload' }}
+                  {{ isUploadingMedia() ? lang.translate('kb.uploadingEllipsis') : lang.translate('kb.upload') }}
                 </button>
               </div>
             </div>
@@ -298,16 +298,16 @@
             <div class="card kb__upload-card">
               <div class="kb__upload-card-hd">
                 <span class="material-symbols-outlined">link</span>
-                <strong>Add Video Link</strong>
+                <strong>{{ lang.translate('kb.addVideoLink') }}</strong>
               </div>
-              <p class="kb__upload-hint">YouTube, Google Drive, or any external URL</p>
+              <p class="kb__upload-hint">{{ lang.translate('kb.addVideoLinkHint') }}</p>
 
               @if (linkError()) {
                 <p class="error-text kb__media-err">{{ linkError() }}</p>
               }
 
               <app-dropdown-select
-                [options]="linkTypeOptions"
+                [options]="linkTypeOptions()"
                 [value]="linkType()"
                 [disabled]="isUploadingAny()"
                 (valueChange)="onLinkTypeChange($event)"
@@ -326,7 +326,7 @@
               <input
                 class="kb__media-desc"
                 type="text"
-                placeholder="Description (required)"
+                [placeholder]="lang.translate('kb.descriptionRequired')"
                 [ngModel]="linkDescription()"
                 (ngModelChange)="linkDescription.set($event)"
                 [disabled]="isUploadingAny()"
@@ -334,7 +334,7 @@
               <input
                 class="kb__media-desc"
                 type="text"
-                placeholder="Display name (optional)"
+                [placeholder]="lang.translate('kb.displayNameOptional')"
                 [ngModel]="linkDisplayName()"
                 (ngModelChange)="linkDisplayName.set($event)"
                 [disabled]="isUploadingAny()"
@@ -345,11 +345,11 @@
                   type="button"
                   class="btn btn-primary"
                   [disabled]="!linkUrl().trim() || !linkDescription().trim() || !!linkUrlError() || isUploadingAny()"
-                  [title]="isUploadingAny() ? 'Wait for the current upload to finish.' : ''"
+                  [title]="isUploadingAny() ? lang.translate('kb.waitForUpload') : ''"
                   (click)="submitLink()"
                 >
                   <span class="material-symbols-outlined">add_link</span>
-                  {{ isAddingLink() ? 'Adding...' : 'Add Link' }}
+                  {{ isAddingLink() ? lang.translate('kb.adding') : lang.translate('kb.addLink') }}
                 </button>
               </div>
             </div>
@@ -362,10 +362,10 @@
                 <li class="kb__item">
                   <span class="material-symbols-outlined kb__item-icon">description</span>
                   @if (item.status === 'uploading') {
-                    <span class="kb__item-name">Uploading {{ item.filename }}...</span>
+                    <span class="kb__item-name">{{ lang.translate('kb.uploadingFile').replace('{name}', item.filename) }}</span>
                     <span class="pill pill-warning">
                       <span class="kb__spinner"></span>
-                      Uploading...
+                      {{ lang.translate('kb.uploadingEllipsis') }}
                     </span>
                   } @else {
                     <span class="kb__item-name">{{ item.filename }}</span>
@@ -387,7 +387,7 @@
           <section class="kb__section">
             <h4 class="kb__section-title">
               <span class="material-symbols-outlined">help</span>
-              Add Suggested Question
+              {{ lang.translate('kb.addSuggestedQuestion') }}
             </h4>
 
             @if (addQuestionError()) {
@@ -399,7 +399,7 @@
                 #sqQuestionInput
                 class="kb__add-input"
                 type="text"
-                placeholder="Question..."
+                [placeholder]="lang.translate('kb.questionPlaceholder')"
                 [ngModel]="newQuestionText()"
                 (ngModelChange)="newQuestionText.set($event)"
               />
@@ -407,11 +407,11 @@
                 #sqAnswerInput
                 class="kb__sq-answer-input"
                 rows="2"
-                placeholder="Fixed answer (optional)..."
+                [placeholder]="lang.translate('kb.answerPlaceholder')"
                 [ngModel]="newAnswerText()"
                 (ngModelChange)="newAnswerText.set($event)"
               ></textarea>
-              <p class="kb__sq-hint">Leave empty to let the AI answer.</p>
+              <p class="kb__sq-hint">{{ lang.translate('kb.answerHint') }}</p>
               <button
                 type="button"
                 class="btn btn-primary"
@@ -419,7 +419,7 @@
                 (click)="addSuggestedQuestion(sqQuestionInput.value, sqAnswerInput.value)"
               >
                 <span class="material-symbols-outlined">add</span>
-                {{ isAddingQuestion() ? 'Adding...' : 'Add' }}
+                {{ isAddingQuestion() ? lang.translate('kb.adding') : lang.translate('kb.add') }}
               </button>
             </div>
           </section>
@@ -433,7 +433,7 @@
               (click)="setLibrarySubTab('files')"
             >
               <span class="material-symbols-outlined">description</span>
-              Files
+              {{ lang.translate('kb.files') }}
             </button>
             <button
               type="button"
@@ -442,7 +442,7 @@
               (click)="setLibrarySubTab('images')"
             >
               <span class="material-symbols-outlined">image</span>
-              Images
+              {{ lang.translate('kb.images') }}
             </button>
             <button
               type="button"
@@ -451,7 +451,7 @@
               (click)="setLibrarySubTab('videos')"
             >
               <span class="material-symbols-outlined">movie</span>
-              Videos
+              {{ lang.translate('kb.videos') }}
             </button>
             <button
               type="button"
@@ -460,7 +460,7 @@
               (click)="setLibrarySubTab('links')"
             >
               <span class="material-symbols-outlined">link</span>
-              Links
+              {{ lang.translate('kb.links') }}
             </button>
             <button
               type="button"
@@ -469,7 +469,7 @@
               (click)="setLibrarySubTab('questions')"
             >
               <span class="material-symbols-outlined">help</span>
-              Questions
+              {{ lang.translate('kb.questions') }}
             </button>
           </div>
 
@@ -478,7 +478,7 @@
             @if (contentLoading()) {
               <div class="kb__content-loading">
                 <span class="kb__spinner kb__spinner--lg"></span>
-                Loading...
+                {{ lang.translate('common.loading') }}
               </div>
             } @else if (contentError()) {
               <p class="error-text">{{ contentError() }}</p>
@@ -495,10 +495,10 @@
               <section class="kb__section">
                 <h4 class="kb__section-title">
                   <span class="material-symbols-outlined">description</span>
-                  Documents ({{ libraryDocuments().length }})
+                  {{ lang.translate('kb.documents') }} ({{ libraryDocuments().length }})
                 </h4>
                 @if (libraryDocuments().length === 0) {
-                  <p class="kb__section-empty">No documents in this category yet.</p>
+                  <p class="kb__section-empty">{{ lang.translate('kb.noDocuments') }}</p>
                 } @else {
                   <ul class="kb__item-list">
                     @for (doc of pagedDocuments(); track doc.id) {
@@ -518,7 +518,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn kb__delete-btn--confirm"
-                            title="Save"
+                            [title]="lang.translate('kb.save')"
                             [disabled]="isRenamingDoc() || !editDocName().trim()"
                             (click)="saveRenameDoc(doc)"
                           >
@@ -527,7 +527,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn"
-                            title="Cancel"
+                            [title]="lang.translate('kb.cancel')"
                             [disabled]="isRenamingDoc()"
                             (click)="cancelRenameDoc()"
                           >
@@ -538,7 +538,7 @@
                             <button
                               type="button"
                               class="kb__item-name kb__item-name--link"
-                              title="Download file"
+                              [title]="lang.translate('kb.downloadFile')"
                               (click)="openDocument(doc)"
                             >
                               {{ doc | displayName: lang.lang() }}
@@ -552,7 +552,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn"
-                            title="Rename document"
+                            [title]="lang.translate('kb.renameDocument')"
                             (click)="startRenameDoc(doc)"
                           >
                             <span class="material-symbols-outlined">edit</span>
@@ -561,7 +561,7 @@
                             <button
                               type="button"
                               class="kb__delete-btn"
-                              [title]="expandedExcelDocId() === doc.id ? 'Collapse table' : 'Expand table'"
+                              [title]="lang.translate(expandedExcelDocId() === doc.id ? 'kb.collapseTable' : 'kb.expandTable')"
                               (click)="toggleExcelTable(doc)"
                             >
                               <span class="material-symbols-outlined">
@@ -572,7 +572,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn"
-                            title="Delete document"
+                            [title]="lang.translate('kb.deleteDocument')"
                             [disabled]="deletingDocIds().has(doc.id)"
                             (click)="deleteDocument(doc)"
                           >
@@ -586,7 +586,7 @@
                           @if (excelTableLoading()) {
                             <div class="kb__content-loading">
                               <span class="kb__spinner"></span>
-                              Loading spreadsheet...
+                              {{ lang.translate('kb.loadingSpreadsheet') }}
                             </div>
                           } @else if (excelTableError()) {
                             <p class="error-text">{{ excelTableError() }}</p>
@@ -596,7 +596,7 @@
                             }
 
                             @if (visibleExcelColumns().length === 0) {
-                              <p class="kb__section-empty">This spreadsheet has no columns.</p>
+                              <p class="kb__section-empty">{{ lang.translate('kb.spreadsheetNoColumns') }}</p>
                             } @else {
                               <div class="kb__excel-scroll">
                                 <table class="kb__excel-table">
@@ -612,7 +612,7 @@
                                     @if (visibleExcelRows().length === 0) {
                                       <tr>
                                         <td [attr.colspan]="visibleExcelColumns().length + 1" class="kb__section-empty">
-                                          No rows yet.
+                                          {{ lang.translate('kb.noRowsYet') }}
                                         </td>
                                       </tr>
                                     } @else {
@@ -648,7 +648,7 @@
                                               <button
                                                 type="button"
                                                 class="kb__delete-btn"
-                                                title="Delete row"
+                                                [title]="lang.translate('kb.deleteRow')"
                                                 [disabled]="deletingRowIds().has(row.id)"
                                                 (click)="deleteExcelRow(row)"
                                               >
@@ -685,7 +685,7 @@
                                   (click)="submitNewRow()"
                                 >
                                   <span class="material-symbols-outlined">add</span>
-                                  {{ isAddingRow() ? 'Adding...' : 'Add Row' }}
+                                  {{ isAddingRow() ? lang.translate('kb.adding') : lang.translate('kb.addRow') }}
                                 </button>
                               </div>
                             }
@@ -699,7 +699,7 @@
                     [page]="filesPage()"
                     [totalPages]="filesTotalPages()"
                     [total]="libraryDocuments().length"
-                    itemLabel="files"
+                    [itemLabel]="lang.translate('kb.pagerFiles')"
                     (pageChange)="filesPage.set($event)"
                   />
                 }
@@ -710,7 +710,7 @@
             @if (contentLoading()) {
               <div class="kb__content-loading">
                 <span class="kb__spinner kb__spinner--lg"></span>
-                Loading...
+                {{ lang.translate('common.loading') }}
               </div>
             } @else if (contentError()) {
               <p class="error-text">{{ contentError() }}</p>
@@ -724,10 +724,10 @@
               <section class="kb__section">
                 <h4 class="kb__section-title">
                   <span class="material-symbols-outlined">image</span>
-                  Images ({{ libraryImages().length }})
+                  {{ lang.translate('kb.images') }} ({{ libraryImages().length }})
                 </h4>
                 @if (libraryImages().length === 0) {
-                  <p class="kb__section-empty">No images in this category yet.</p>
+                  <p class="kb__section-empty">{{ lang.translate('kb.noImages') }}</p>
                 } @else {
                   <div class="kb__video-grid">
                     @for (item of pagedImages(); track item.id) {
@@ -758,7 +758,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn kb__delete-btn--confirm"
-                            title="Save"
+                            [title]="lang.translate('kb.save')"
                             [disabled]="isRenamingMedia() || !editMediaName().trim()"
                             (click)="saveRenameMedia(item)"
                           >
@@ -767,7 +767,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn"
-                            title="Cancel"
+                            [title]="lang.translate('kb.cancel')"
                             [disabled]="isRenamingMedia()"
                             (click)="cancelRenameMedia()"
                           >
@@ -777,7 +777,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn"
-                            title="Rename image"
+                            [title]="lang.translate('kb.renameImage')"
                             (click)="startRenameMedia(item)"
                           >
                             <span class="material-symbols-outlined">edit</span>
@@ -785,7 +785,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn"
-                            title="Delete image"
+                            [title]="lang.translate('kb.deleteImage')"
                             [disabled]="deletingMediaIds().has(item.id)"
                             (click)="deleteMedia(item)"
                           >
@@ -800,7 +800,7 @@
                     [page]="imagesPage()"
                     [totalPages]="imagesTotalPages()"
                     [total]="libraryImages().length"
-                    itemLabel="images"
+                    [itemLabel]="lang.translate('kb.pagerImages')"
                     (pageChange)="imagesPage.set($event)"
                   />
                 }
@@ -811,7 +811,7 @@
             @if (contentLoading()) {
               <div class="kb__content-loading">
                 <span class="kb__spinner kb__spinner--lg"></span>
-                Loading...
+                {{ lang.translate('common.loading') }}
               </div>
             } @else if (contentError()) {
               <p class="error-text">{{ contentError() }}</p>
@@ -825,10 +825,10 @@
               <section class="kb__section">
                 <h4 class="kb__section-title">
                   <span class="material-symbols-outlined">movie</span>
-                  Videos ({{ libraryVideos().length }})
+                  {{ lang.translate('kb.videos') }} ({{ libraryVideos().length }})
                 </h4>
                 @if (libraryVideos().length === 0) {
-                  <p class="kb__section-empty">No videos in this category yet.</p>
+                  <p class="kb__section-empty">{{ lang.translate('kb.noVideos') }}</p>
                 } @else {
                   <div class="kb__video-grid">
                     @for (item of pagedVideos(); track item.id) {
@@ -859,7 +859,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn kb__delete-btn--confirm"
-                            title="Save"
+                            [title]="lang.translate('kb.save')"
                             [disabled]="isRenamingMedia() || !editMediaName().trim()"
                             (click)="saveRenameMedia(item)"
                           >
@@ -868,7 +868,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn"
-                            title="Cancel"
+                            [title]="lang.translate('kb.cancel')"
                             [disabled]="isRenamingMedia()"
                             (click)="cancelRenameMedia()"
                           >
@@ -878,7 +878,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn"
-                            title="Rename video"
+                            [title]="lang.translate('kb.renameVideo')"
                             (click)="startRenameMedia(item)"
                           >
                             <span class="material-symbols-outlined">edit</span>
@@ -886,7 +886,7 @@
                           <button
                             type="button"
                             class="kb__delete-btn"
-                            title="Delete video"
+                            [title]="lang.translate('kb.deleteVideo')"
                             [disabled]="deletingMediaIds().has(item.id)"
                             (click)="deleteMedia(item)"
                           >
@@ -901,7 +901,7 @@
                     [page]="videosPage()"
                     [totalPages]="videosTotalPages()"
                     [total]="libraryVideos().length"
-                    itemLabel="videos"
+                    [itemLabel]="lang.translate('kb.pagerVideos')"
                     (pageChange)="videosPage.set($event)"
                   />
                 }
@@ -912,7 +912,7 @@
             @if (contentLoading()) {
               <div class="kb__content-loading">
                 <span class="kb__spinner kb__spinner--lg"></span>
-                Loading...
+                {{ lang.translate('common.loading') }}
               </div>
             } @else if (contentError()) {
               <p class="error-text">{{ contentError() }}</p>
@@ -926,10 +926,10 @@
               <section class="kb__section">
                 <h4 class="kb__section-title">
                   <span class="material-symbols-outlined">link</span>
-                  Links ({{ libraryLinks().length }})
+                  {{ lang.translate('kb.links') }} ({{ libraryLinks().length }})
                 </h4>
                 @if (libraryLinks().length === 0) {
-                  <p class="kb__section-empty">No links in this category yet.</p>
+                  <p class="kb__section-empty">{{ lang.translate('kb.noLinks') }}</p>
                 } @else {
                   <div class="kb__link-grid">
                     @for (item of pagedLinks(); track item.id) {
@@ -938,7 +938,7 @@
                           <iframe
                             class="kb__link-embed"
                             [src]="embedUrl"
-                            title="video"
+                            [title]="lang.translate('kb.videoFrameTitle')"
                             frameborder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowfullscreen
@@ -951,7 +951,7 @@
                             rel="noopener noreferrer"
                           >
                             <span class="material-symbols-outlined">open_in_new</span>
-                            Open link
+                            {{ lang.translate('kb.openLink') }}
                           </a>
                         }
                         <div class="kb__link-card-body">
@@ -976,7 +976,7 @@
                                 <button
                                   type="button"
                                   class="kb__delete-btn kb__delete-btn--confirm"
-                                  title="Save"
+                                  [title]="lang.translate('kb.save')"
                                   [disabled]="isRenamingMedia() || !editMediaName().trim()"
                                   (click)="saveRenameMedia(item)"
                                 >
@@ -985,7 +985,7 @@
                                 <button
                                   type="button"
                                   class="kb__delete-btn"
-                                  title="Cancel"
+                                  [title]="lang.translate('kb.cancel')"
                                   [disabled]="isRenamingMedia()"
                                   (click)="cancelRenameMedia()"
                                 >
@@ -995,7 +995,7 @@
                                 <button
                                   type="button"
                                   class="kb__delete-btn"
-                                  title="Rename link"
+                                  [title]="lang.translate('kb.renameLink')"
                                   (click)="startRenameMedia(item)"
                                 >
                                   <span class="material-symbols-outlined">edit</span>
@@ -1003,7 +1003,7 @@
                                 <button
                                   type="button"
                                   class="kb__delete-btn"
-                                  title="Delete link"
+                                  [title]="lang.translate('kb.deleteLink')"
                                   [disabled]="deletingMediaIds().has(item.id)"
                                   (click)="deleteMedia(item)"
                                 >
@@ -1021,7 +1021,7 @@
                     [page]="linksPage()"
                     [totalPages]="linksTotalPages()"
                     [total]="libraryLinks().length"
-                    itemLabel="links"
+                    [itemLabel]="lang.translate('kb.pagerLinks')"
                     (pageChange)="linksPage.set($event)"
                   />
                 }
@@ -1042,18 +1042,18 @@
             <section class="kb__section">
               <h4 class="kb__section-title">
                 <span class="material-symbols-outlined">help</span>
-                Suggested Questions ({{ suggestedQuestions().length }})
+                {{ lang.translate('kb.suggestedQuestions') }} ({{ suggestedQuestions().length }})
               </h4>
 
               @if (sqLoading()) {
                 <div class="kb__content-loading">
                   <span class="kb__spinner"></span>
-                  Loading...
+                  {{ lang.translate('common.loading') }}
                 </div>
               } @else if (sqError()) {
                 <p class="error-text">{{ sqError() }}</p>
               } @else if (suggestedQuestions().length === 0) {
-                <p class="kb__section-empty">No suggested questions yet.</p>
+                <p class="kb__section-empty">{{ lang.translate('kb.noSuggestedQuestions') }}</p>
               } @else {
                 <ul class="kb__item-list">
                   @for (q of pagedSuggestedQuestions(); track q.id) {
@@ -1064,7 +1064,7 @@
                           <input
                             class="kb__edit-input"
                             type="text"
-                            placeholder="Question"
+                            [placeholder]="lang.translate('kb.question')"
                             [ngModel]="editQuestionText()"
                             (ngModelChange)="editQuestionText.set($event)"
                             (keydown.escape)="cancelEditQuestion()"
@@ -1072,17 +1072,17 @@
                           <textarea
                             class="kb__sq-answer-input"
                             rows="2"
-                            placeholder="Answer (optional)"
+                            [placeholder]="lang.translate('kb.answerOptional')"
                             [ngModel]="editAnswerText()"
                             (ngModelChange)="editAnswerText.set($event)"
                             (keydown.escape)="cancelEditQuestion()"
                           ></textarea>
-                          <p class="kb__sq-hint">Leave empty to let the AI answer.</p>
+                          <p class="kb__sq-hint">{{ lang.translate('kb.answerHint') }}</p>
                         </div>
                         <button
                           type="button"
                           class="kb__delete-btn kb__delete-btn--confirm"
-                          title="Save"
+                          [title]="lang.translate('kb.save')"
                           [disabled]="isSavingQuestion() || !editQuestionText().trim()"
                           (click)="saveEditQuestion(q)"
                         >
@@ -1091,7 +1091,7 @@
                         <button
                           type="button"
                           class="kb__delete-btn"
-                          title="Cancel"
+                          [title]="lang.translate('kb.cancel')"
                           [disabled]="isSavingQuestion()"
                           (click)="cancelEditQuestion()"
                         >
@@ -1106,14 +1106,14 @@
                           } @else {
                             <span class="kb__item-desc kb__item-desc--ai">
                               <span class="material-symbols-outlined kb__sq-ai-icon">auto_awesome</span>
-                              Answered by AI
+                              {{ lang.translate('kb.answeredByAI') }}
                             </span>
                           }
                         </div>
                         <button
                           type="button"
                           class="kb__delete-btn"
-                          title="Edit question"
+                          [title]="lang.translate('kb.editQuestion')"
                           (click)="startEditQuestion(q)"
                         >
                           <span class="material-symbols-outlined">edit</span>
@@ -1121,7 +1121,7 @@
                         <button
                           type="button"
                           class="kb__delete-btn"
-                          title="Delete question"
+                          [title]="lang.translate('kb.deleteQuestion')"
                           [disabled]="deletingQuestionIds().has(q.id)"
                           (click)="deleteSuggestedQuestion(q)"
                         >
@@ -1136,7 +1136,7 @@
                   [page]="sqPage()"
                   [totalPages]="sqTotalPages()"
                   [total]="suggestedQuestions().length"
-                  itemLabel="questions"
+                  [itemLabel]="lang.translate('kb.pagerQuestions')"
                   (pageChange)="sqPage.set($event)"
                 />
               }

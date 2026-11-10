@@ -21,7 +21,7 @@ export const superadminGuard: CanActivateFn = (_route, state) => {
       if (authService.isSuperadmin()) {
         return true;
       }
-      return router.createUrlTree([authService.isAdmin() ? '/knowledge-base' : '/chat']);
+      return router.createUrlTree([authService.isAdmin() ? '/dashboard' : '/chat']);
     }),
   );
 };

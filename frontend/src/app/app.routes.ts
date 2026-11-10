@@ -125,6 +125,25 @@ export const routes: Routes = [
           import('./features/admin/analytics/analytics').then((m) => m.Analytics),
       },
       {
+        // Admin home: what needs attention now + this period's numbers.
+        path: 'dashboard',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./features/admin/dashboard/dashboard').then((m) => m.Dashboard),
+      },
+      {
+        // Answers users rated thumbs-down, to fix (teach the bot) or dismiss.
+        path: 'answer-feedback',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/admin/answer-feedback/answer-feedback').then((m) => m.AnswerFeedback),
+      },
+      {
+        // Who changed what in the admin area.
+        path: 'activity-log',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./features/admin/activity-log/activity-log').then((m) => m.ActivityLog),
+      },
+      {
         // Questions the bot couldn't answer, for the tenant admin to answer
         // (each answer becomes knowledge the bot uses from then on).
         path: 'unanswered-questions',
@@ -159,7 +178,7 @@ export const routes: Routes = [
   {
     path: 'admin',
     pathMatch: 'full',
-    redirectTo: 'knowledge-base',
+    redirectTo: 'dashboard',
   },
   {
     path: 'superadmin',

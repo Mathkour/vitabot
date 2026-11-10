@@ -175,6 +175,9 @@ def test_top_questions_and_digest_exclude_no_info(monkeypatch):
     queries = []
 
     class AnalyticsConn:
+        def transaction(self):
+            return contextlib.asynccontextmanager(_nothing)()
+
         async def fetch(self, sql, *args):
             queries.append(sql)
             return []
@@ -193,3 +196,7 @@ def test_top_questions_and_digest_exclude_no_info(monkeypatch):
     top = [q for q in queries if "endpoint = 'ask'" in q]
     assert top, "digest should query the 'ask' rows"
     assert all("NOT EXISTS" in q and "'no_info_response'" in q for q in top)
+
+
+async def _nothing():
+    yield

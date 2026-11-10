@@ -90,7 +90,7 @@ export class AuthPage {
     if (this.authService.isSuperadmin()) {
       this.router.navigate(['/superadmin']);
     } else if (this.authService.isAdmin()) {
-      this.router.navigate(['/knowledge-base']);
+      this.router.navigate(['/dashboard']);
     } else {
       this.router.navigate(['/chat']);
     }

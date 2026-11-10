@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { Category } from '../../../core/models/category.models';
 import { UnansweredQuestion, UnansweredQuestionStatus } from '../../../core/models/unanswered-question.models';
 import { CategoriesService } from '../../../core/services/categories.service';
@@ -31,6 +32,7 @@ export class UnansweredQuestions implements OnInit, OnDestroy {
   private readonly service = inject(UnansweredQuestionsService);
   private readonly categoriesService = inject(CategoriesService);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly route = inject(ActivatedRoute);
   readonly lang = inject(LanguageService);
 
   readonly tabs: { status: UnansweredQuestionStatus; icon: string }[] = [
@@ -64,6 +66,9 @@ export class UnansweredQuestions implements OnInit, OnDestroy {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
+    // Analytics' Weak Answers links here with ?search=<question>.
+    const search = this.route.snapshot.queryParamMap.get('search');
+    if (search) this.search.set(search);
     this.categoriesService.list().subscribe({ next: (c) => this.categories.set(c), error: () => {} });
     this.load();
   }

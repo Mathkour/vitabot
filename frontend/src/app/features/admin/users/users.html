@@ -88,7 +88,35 @@
               <tr>
                 <td>{{ user.username || '—' }}</td>
                 <td class="users__table-email">{{ user.email }}</td>
-                <td><span class="pill {{ roleBadgeClass(user.role) }}">{{ user.role }}</span></td>
+                <td>
+                  @if (isTenantAdmin() && editingRoleUserId() === user.id) {
+                    <div class="users__company-edit">
+                      <app-dropdown-select
+                        class="users__company-edit-select"
+                        [options]="roleOptions()"
+                        [value]="editingRole()"
+                        [disabled]="isSavingRole()"
+                        (valueChange)="editingRole.set($event)"
+                      />
+                      <button type="button" class="users__action-btn" [title]="lang.translate('common.save')" (click)="saveEditRole(user)" [disabled]="isSavingRole()">
+                        <span class="material-symbols-outlined">check</span>
+                      </button>
+                      <button type="button" class="users__action-btn" [title]="lang.translate('common.cancel')" (click)="cancelEditRole()" [disabled]="isSavingRole()">
+                        <span class="material-symbols-outlined">close</span>
+                      </button>
+                    </div>
+                    @if (roleError()) {
+                      <p class="error-text users__role-error">{{ roleError() }}</p>
+                    }
+                  } @else if (isTenantAdmin() && !isSelf(user)) {
+                    <button type="button" class="users__company-cell-btn" [title]="lang.translate('users.changeRole')" (click)="startEditRole(user)">
+                      <span class="pill {{ roleBadgeClass(user.role) }}">{{ roleLabel(user.role) }}</span>
+                      <span class="material-symbols-outlined">edit</span>
+                    </button>
+                  } @else {
+                    <span class="pill {{ roleBadgeClass(user.role) }}">{{ roleLabel(user.role) }}</span>
+                  }
+                </td>
                 @if (companies().length > 0) {
                   <td>
                     @if (isTenantAdmin() && editingCompanyUserId() === user.id) {

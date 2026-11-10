@@ -1,0 +1,157 @@
+<div class="uq">
+  <div class="uq__header">
+    <h2>{{ lang.translate('feedback.title') }}</h2>
+    <p class="uq__subtext">{{ lang.translate('feedback.subtitle') }}</p>
+  </div>
+
+  <div class="uq__toolbar">
+    <div class="uq__tabs" role="tablist">
+      @for (tab of tabs; track tab.status) {
+        <button
+          type="button"
+          role="tab"
+          class="uq__tab"
+          [class.uq__tab--active]="activeTab() === tab.status"
+          [attr.aria-selected]="activeTab() === tab.status"
+          (click)="setActiveTab(tab.status)"
+        >
+          <span class="material-symbols-outlined">{{ tab.icon }}</span>
+          {{ lang.translate('feedback.tab.' + tab.status) }}
+          <span class="uq__count">{{ counts()[tab.status] }}</span>
+        </button>
+      }
+    </div>
+    <label class="uq__search">
+      <span class="material-symbols-outlined">search</span>
+      <input
+        type="search"
+        [placeholder]="lang.translate('feedback.searchPlaceholder')"
+        [ngModel]="search()"
+        (ngModelChange)="onSearchChange($event)"
+      />
+    </label>
+  </div>
+
+  @if (notice()) {
+    <div class="uq__notice" role="status">
+      <span class="material-symbols-outlined">school</span>
+      {{ notice() }}
+      <button type="button" class="uq__notice-close" [attr.aria-label]="lang.translate('common.close')" (click)="notice.set(null)">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+  }
+
+  <div class="card uq__card">
+    @if (isLoading()) {
+      <div class="uq__status"><span class="uq__spinner"></span>{{ lang.translate('common.loading') }}</div>
+    } @else if (loadError()) {
+      <p class="error-text uq__status">{{ loadError() }}</p>
+    } @else if (items().length === 0) {
+      <p class="uq__empty">{{ lang.translate(search() ? 'unanswered.noMatches' : 'feedback.empty.' + activeTab()) }}</p>
+    } @else {
+      <ul class="uq__list">
+        @for (item of items(); track item.id) {
+          <li class="uq__item">
+            <div class="uq__question" dir="auto">{{ item.question || lang.translate('feedback.questionMissing') }}</div>
+
+            <div class="uq__meta">
+              <span class="uq__meta-item" [class.uq__meta-item--muted]="!item.username && !item.email">
+                <span class="material-symbols-outlined">person</span>
+                @if (item.user_id) {
+                  <a class="af__user-link" [routerLink]="['/conversations', item.user_id]">{{ userLabel(item) }}</a>
+                } @else {
+                  {{ userLabel(item) }}
+                }
+              </span>
+              <span class="uq__meta-item" [class.uq__meta-item--muted]="!item.company_name">
+                <span class="material-symbols-outlined">domain</span>{{ item.company_name || lang.translate('unanswered.noCompany') }}
+              </span>
+              <span class="uq__meta-item"><span class="material-symbols-outlined">schedule</span>{{ item.created_at | date: 'medium' }}</span>
+            </div>
+
+            <div class="af__bot-answer">
+              <div class="uq__answer-label">{{ lang.translate('feedback.botAnswered') }}</div>
+              <div class="af__bot-text" dir="auto">{{ item.answer }}</div>
+            </div>
+
+            @if (item.feedback) {
+              <div class="af__comment" dir="auto">
+                <span class="material-symbols-outlined">chat_bubble</span>“{{ item.feedback }}”
+              </div>
+            }
+
+            @if (item.review_status === 'fixed' && editingId() !== item.id) {
+              <div class="uq__answer">
+                <div class="uq__answer-label">{{ lang.translate('feedback.correctAnswer') }}</div>
+                <div class="uq__answer-text" dir="auto">{{ item.corrected_answer }}</div>
+                <div class="uq__answer-by">
+                  {{ lang.translate('unanswered.answeredBy').replace('{name}', item.reviewed_by_name || '—') }} · {{ item.reviewed_at | date: 'medium' }}
+                </div>
+              </div>
+            }
+            @if (item.review_status === 'dismissed') {
+              <div class="uq__answer-by">
+                {{ lang.translate('feedback.dismissedBy').replace('{name}', item.reviewed_by_name || '—') }} · {{ item.reviewed_at | date: 'medium' }}
+              </div>
+            }
+
+            @if (editingId() === item.id) {
+              <div class="uq__editor">
+                <label class="uq__field-label" [for]="'af-answer-' + item.id">{{ lang.translate('feedback.correctAnswer') }}</label>
+                <textarea
+                  [id]="'af-answer-' + item.id"
+                  class="uq__textarea"
+                  rows="4"
+                  dir="auto"
+                  [placeholder]="lang.translate('unanswered.answerPlaceholder')"
+                  [ngModel]="draftAnswer()"
+                  (ngModelChange)="draftAnswer.set($event)"
+                ></textarea>
+                <div class="uq__editor-row">
+                  <div class="uq__category">
+                    <span class="uq__field-label">{{ lang.translate('unanswered.category') }}</span>
+                    <app-dropdown-select [options]="categoryOptions()" [value]="draftCategoryId()" (valueChange)="draftCategoryId.set($event)" />
+                  </div>
+                  <p class="uq__hint">{{ lang.translate('feedback.fixHint') }}</p>
+                </div>
+                @if (rowError()) {
+                  <p class="error-text">{{ rowError() }}</p>
+                }
+                <div class="uq__actions">
+                  <button type="button" class="btn btn-secondary" [disabled]="busyId() === item.id" (click)="closeEditor()">{{ lang.translate('common.cancel') }}</button>
+                  <button type="button" class="btn btn-primary" [disabled]="busyId() === item.id || !draftAnswer().trim()" (click)="saveFix(item)">
+                    {{ busyId() === item.id ? lang.translate('unanswered.saving') : lang.translate('unanswered.saveAnswer') }}
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <div class="uq__actions">
+                @switch (item.review_status) {
+                  @case ('open') {
+                    <button type="button" class="btn btn-secondary" [disabled]="busyId() === item.id" (click)="dismiss(item)">{{ lang.translate('feedback.answerWasFine') }}</button>
+                    <button type="button" class="btn btn-primary" [disabled]="busyId() === item.id || !item.question" (click)="startFixing(item)">{{ lang.translate('feedback.fixAnswer') }}</button>
+                  }
+                  @case ('fixed') {
+                    <button type="button" class="btn btn-primary" [disabled]="busyId() === item.id" (click)="startFixing(item)">{{ lang.translate('unanswered.editAnswer') }}</button>
+                  }
+                  @case ('dismissed') {
+                    <button type="button" class="btn btn-secondary" [disabled]="busyId() === item.id" (click)="reopen(item)">{{ lang.translate('unanswered.reopen') }}</button>
+                  }
+                }
+              </div>
+            }
+          </li>
+        }
+      </ul>
+      @if (rowError() && editingId() === null) {
+        <p class="error-text uq__status">{{ rowError() }}</p>
+      }
+      @if (totalPages() > 1) {
+        <div class="uq__pagination">
+          <app-pagination [page]="page()" [totalPages]="totalPages()" [total]="total()" [itemLabel]="lang.translate('feedback.itemLabel')" (pageChange)="onPageChange($event)" />
+        </div>
+      }
+    }
+  </div>
+</div>

@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 import db
 from core.auth import get_current_user_id, require_admin
+from services.activity import log_activity
 from services.embeddings import get_embedding
 
 router = APIRouter(prefix="/unanswered-questions", tags=["unanswered-questions"])
@@ -167,6 +168,64 @@ class AnswerRequest(BaseModel):
     category_id: str | None = None
 
 
+async def save_answer(conn, tenant_id: str, admin_id: str, question_id: str, answer: str, category_id: str | None) -> int:
+    """Saves (or edits) the answer to one question and teaches it to the bot.
+    Every other OPEN occurrence of the same question (case/whitespace
+    -insensitive) is answered along with it, sharing one knowledge-base
+    chunk. Returns how many questions were answered. Also used by Answer
+    Feedback when an admin corrects a thumbs-down answer."""
+    target = await conn.fetchrow(
+        "SELECT id, question, status, chunk_id FROM unanswered_questions WHERE id = $1 AND tenant_id = $2",
+        question_id, tenant_id,
+    )
+    if target is None:
+        raise HTTPException(status_code=404, detail="Question not found")
+    if category_id:
+        if not await conn.fetchval(
+            "SELECT 1 FROM categories WHERE id = $1 AND tenant_id = $2", category_id, tenant_id,
+        ):
+            raise HTTPException(status_code=400, detail="Unknown category")
+
+    content = f"Question: {target['question'].strip()}\nAnswer: {answer}"
+    embedding = await get_embedding(content)
+    embedding_str = "[" + ",".join(f"{x:.10f}" for x in embedding) + "]"
+
+    chunk_id = target["chunk_id"]
+    updated = None
+    if chunk_id is not None:
+        updated = await conn.fetchval(
+            "UPDATE chunks SET content = $1, embedding = $2, category_id = $3 "
+            "WHERE id = $4 AND tenant_id = $5 RETURNING id",
+            content, embedding_str, category_id, chunk_id, tenant_id,
+        )
+    if updated is None:  # first answer, or the old chunk was deleted
+        doc_id = await _answers_document_id(conn, tenant_id)
+        chunk_id = await conn.fetchval(
+            "INSERT INTO chunks (tenant_id, document_id, content, embedding, category_id) "
+            "VALUES ($1, $2, $3, $4, $5) RETURNING id",
+            tenant_id, doc_id, content, embedding_str, category_id,
+        )
+
+    result = await conn.execute(
+        """
+        UPDATE unanswered_questions
+        SET status = 'answered', answer = $1, answered_by = $2, answered_at = now(),
+            chunk_id = $3, category_id = $4
+        WHERE tenant_id = $5
+          AND (id = $6
+               OR chunk_id = $3
+               OR (status = 'open' AND lower(btrim(question)) = lower(btrim($7))))
+        """,
+        answer, admin_id, chunk_id, category_id, tenant_id, question_id, target["question"],
+    )
+    await log_activity(
+        conn, tenant_id, admin_id,
+        "question.answer" if target["status"] != "answered" else "question.edit_answer",
+        target["question"],
+    )
+    return int(result.split()[-1])
+
+
 @router.post("/{question_id}/answer")
 async def answer_question(
     question_id: str,
@@ -174,76 +233,38 @@ async def answer_question(
     tenant_id: str = Depends(require_admin),
     admin_id: str = Depends(get_current_user_id),
 ):
-    """Answers (or edits the answer to) a question. Every other OPEN
-    occurrence of the same question (case/whitespace-insensitive) is
-    answered along with it, sharing one knowledge-base chunk."""
+    """Answers (or edits the answer to) a question; see save_answer."""
     answer = body.answer.strip()
     if not answer:
         raise HTTPException(status_code=400, detail="Answer is required")
     try:
         async with db.tenant_connection(tenant_id) as conn:
-            target = await conn.fetchrow(
-                "SELECT id, question, status, chunk_id FROM unanswered_questions WHERE id = $1 AND tenant_id = $2",
-                question_id, tenant_id,
-            )
-            if target is None:
-                raise HTTPException(status_code=404, detail="Question not found")
-            if body.category_id:
-                if not await conn.fetchval(
-                    "SELECT 1 FROM categories WHERE id = $1 AND tenant_id = $2", body.category_id, tenant_id,
-                ):
-                    raise HTTPException(status_code=400, detail="Unknown category")
-
-            content = f"Question: {target['question'].strip()}\nAnswer: {answer}"
-            embedding = await get_embedding(content)
-            embedding_str = "[" + ",".join(f"{x:.10f}" for x in embedding) + "]"
-
-            chunk_id = target["chunk_id"]
-            updated = None
-            if chunk_id is not None:
-                updated = await conn.fetchval(
-                    "UPDATE chunks SET content = $1, embedding = $2, category_id = $3 "
-                    "WHERE id = $4 AND tenant_id = $5 RETURNING id",
-                    content, embedding_str, body.category_id, chunk_id, tenant_id,
-                )
-            if updated is None:  # first answer, or the old chunk was deleted
-                doc_id = await _answers_document_id(conn, tenant_id)
-                chunk_id = await conn.fetchval(
-                    "INSERT INTO chunks (tenant_id, document_id, content, embedding, category_id) "
-                    "VALUES ($1, $2, $3, $4, $5) RETURNING id",
-                    tenant_id, doc_id, content, embedding_str, body.category_id,
-                )
-
-            result = await conn.execute(
-                """
-                UPDATE unanswered_questions
-                SET status = 'answered', answer = $1, answered_by = $2, answered_at = now(),
-                    chunk_id = $3, category_id = $4
-                WHERE tenant_id = $5
-                  AND (id = $6
-                       OR chunk_id = $3
-                       OR (status = 'open' AND lower(btrim(question)) = lower(btrim($7))))
-                """,
-                answer, admin_id, chunk_id, body.category_id, tenant_id, question_id, target["question"],
-            )
+            updated = await save_answer(conn, tenant_id, admin_id, question_id, answer, body.category_id)
     except asyncpg.UndefinedTableError as e:
         _migration_guard(e)
-    return {"status": "answered", "updated": int(result.split()[-1])}
+    return {"status": "answered", "updated": updated}
 
 
-async def _set_status(question_id: str, tenant_id: str, new_status: str, allowed_from: tuple[str, ...]) -> dict:
+async def _set_status(
+    question_id: str, tenant_id: str, admin_id: str, new_status: str, allowed_from: tuple[str, ...],
+) -> dict:
     try:
         async with db.tenant_connection(tenant_id) as conn:
-            current = await conn.fetchval(
-                "SELECT status FROM unanswered_questions WHERE id = $1 AND tenant_id = $2", question_id, tenant_id,
+            current = await conn.fetchrow(
+                "SELECT status, question FROM unanswered_questions WHERE id = $1 AND tenant_id = $2",
+                question_id, tenant_id,
             )
             if current is None:
                 raise HTTPException(status_code=404, detail="Question not found")
-            if current not in allowed_from:
-                raise HTTPException(status_code=409, detail=f"Can't change a question that is {current}")
+            if current["status"] not in allowed_from:
+                raise HTTPException(status_code=409, detail=f"Can't change a question that is {current['status']}")
             await conn.execute(
                 "UPDATE unanswered_questions SET status = $1 WHERE id = $2 AND tenant_id = $3",
                 new_status, question_id, tenant_id,
+            )
+            await log_activity(
+                conn, tenant_id, admin_id,
+                "question.dismiss" if new_status == "dismissed" else "question.reopen", current["question"],
             )
     except asyncpg.UndefinedTableError as e:
         _migration_guard(e)
@@ -251,24 +272,30 @@ async def _set_status(question_id: str, tenant_id: str, new_status: str, allowed
 
 
 @router.post("/{question_id}/dismiss")
-async def dismiss_question(question_id: str, tenant_id: str = Depends(require_admin)):
+async def dismiss_question(
+    question_id: str, tenant_id: str = Depends(require_admin), admin_id: str = Depends(get_current_user_id),
+):
     """For questions not worth answering (spam, off-topic, tests)."""
-    return await _set_status(question_id, tenant_id, "dismissed", ("open",))
+    return await _set_status(question_id, tenant_id, admin_id, "dismissed", ("open",))
 
 
 @router.post("/{question_id}/reopen")
-async def reopen_question(question_id: str, tenant_id: str = Depends(require_admin)):
-    return await _set_status(question_id, tenant_id, "open", ("dismissed",))
+async def reopen_question(
+    question_id: str, tenant_id: str = Depends(require_admin), admin_id: str = Depends(get_current_user_id),
+):
+    return await _set_status(question_id, tenant_id, admin_id, "open", ("dismissed",))
 
 
 @router.delete("/{question_id}/answer")
-async def remove_answer(question_id: str, tenant_id: str = Depends(require_admin)):
+async def remove_answer(
+    question_id: str, tenant_id: str = Depends(require_admin), admin_id: str = Depends(get_current_user_id),
+):
     """Takes an answer back: deletes its knowledge-base chunk (the bot stops
     using it) and reopens every question that shared it."""
     try:
         async with db.tenant_connection(tenant_id) as conn:
             target = await conn.fetchrow(
-                "SELECT status, chunk_id FROM unanswered_questions WHERE id = $1 AND tenant_id = $2",
+                "SELECT status, chunk_id, question FROM unanswered_questions WHERE id = $1 AND tenant_id = $2",
                 question_id, tenant_id,
             )
             if target is None:
@@ -284,6 +311,7 @@ async def remove_answer(question_id: str, tenant_id: str = Depends(require_admin
                 await conn.execute("DELETE FROM chunks WHERE id = $1 AND tenant_id = $2", target["chunk_id"], tenant_id)
             else:
                 result = await conn.execute(reopen_sql + "id = $2", tenant_id, question_id)
+            await log_activity(conn, tenant_id, admin_id, "question.remove_answer", target["question"])
     except asyncpg.UndefinedTableError as e:
         _migration_guard(e)
     return {"status": "open", "updated": int(result.split()[-1])}

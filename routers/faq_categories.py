@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 
 import db
-from core.auth import get_current_tenant, require_vita_care_tenant, VITA_CARE_TENANT_ID
+from core.auth import get_current_tenant, require_admin, require_vita_care_tenant, VITA_CARE_TENANT_ID
 
 router = APIRouter(tags=["faq-categories"])
 
@@ -37,7 +37,7 @@ async def list_faq_categories(tenant_id: str = Depends(get_current_tenant)):
 @router.post("/admin/faq-categories")
 async def create_faq_category(
     body: FaqCategoryRequest,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
 ):
     async with db.tenant_connection(tenant_id) as conn:
         row = await conn.fetchrow(
@@ -58,7 +58,7 @@ async def create_faq_category(
 async def update_faq_category(
     category_id: str,
     body: FaqCategoryRequest,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
 ):
     async with db.tenant_connection(tenant_id) as conn:
         row = await conn.fetchrow(
@@ -78,7 +78,7 @@ async def update_faq_category(
 @router.delete("/admin/faq-categories/{category_id}")
 async def delete_faq_category(
     category_id: str,
-    tenant_id: str = Depends(get_current_tenant),
+    tenant_id: str = Depends(require_admin),
 ):
     # Any faq_items pointing at this category fall back to uncategorized
     # automatically via its ON DELETE SET NULL FK (migrations/006) — no
