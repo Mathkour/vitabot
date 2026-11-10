@@ -39,6 +39,9 @@ from routers.faq_categories import router as faq_categories_router, validate_cat
 from routers.tenant_analytics import router as tenant_analytics_router
 from routers.companies import router as companies_router
 from routers.support_tickets import router as support_tickets_router
+from routers.unanswered_questions import (
+    router as unanswered_questions_router, record_unanswered_question, ANSWERS_DOC_FILENAME,
+)
 from services.document_index import extract_index_pages, index_document_pages, split_txt_into_chunks
 import time
 from loguru import logger
@@ -158,6 +161,7 @@ app.include_router(faq_categories_router)
 app.include_router(tenant_analytics_router)
 app.include_router(companies_router)
 app.include_router(support_tickets_router)
+app.include_router(unanswered_questions_router)
 
 @app.get("/health")
 
@@ -1256,8 +1260,12 @@ async def upload_document(
 async def list_documents(tenant_id:str=Depends(get_current_tenant)):
     async with db.tenant_connection(tenant_id) as conn:
         rows = await conn.fetch(
-            "SELECT id, filename, display_name, status, created_at FROM documents WHERE tenant_id = $1 ORDER BY created_at DESC",
-            tenant_id,
+            # The Unanswered Questions answers document is managed from its
+            # own page; listing it here would let it be deleted (taking
+            # every learned answer with it) by accident.
+            "SELECT id, filename, display_name, status, created_at FROM documents "
+            "WHERE tenant_id = $1 AND filename <> $2 ORDER BY created_at DESC",
+            tenant_id, ANSWERS_DOC_FILENAME,
         )
         return [dict(r) for r in  rows]
 def _format_slide_range(slide_numbers:list[int])->str:
@@ -1883,6 +1891,11 @@ async def ask(
         msg=await conn.fetchrow("INSERT INTO messages (tenant_id, conversation_id, role, content, created_at) VALUES ($1, $2, 'assistant', $3, clock_timestamp()) RETURNING id",
             tenant_id, conversation_id, answer,)
         message_id=str(msg["id"])
+        if offer_support:
+            # Lands in the admin's Unanswered Questions page; never raises.
+            await record_unanswered_question(
+                conn, tenant_id, user_id, conversation_id, message_id, body.question, body.category_id,
+            )
 
     response= {
         "conversation_id": conversation_id,

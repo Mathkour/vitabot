@@ -1,0 +1,174 @@
+<div class="uq">
+  <div class="uq__header">
+    <h2>{{ lang.translate('unanswered.title') }}</h2>
+    <p class="uq__subtext">{{ lang.translate('unanswered.subtitle') }}</p>
+  </div>
+
+  <div class="uq__toolbar">
+    <div class="uq__tabs" role="tablist">
+      @for (tab of tabs; track tab.status) {
+        <button
+          type="button"
+          role="tab"
+          class="uq__tab"
+          [class.uq__tab--active]="activeTab() === tab.status"
+          [attr.aria-selected]="activeTab() === tab.status"
+          (click)="setActiveTab(tab.status)"
+        >
+          <span class="material-symbols-outlined">{{ tab.icon }}</span>
+          {{ lang.translate('unanswered.tab.' + tab.status) }}
+          <span class="uq__count">{{ counts()[tab.status] }}</span>
+        </button>
+      }
+    </div>
+    <label class="uq__search">
+      <span class="material-symbols-outlined">search</span>
+      <input
+        type="search"
+        [placeholder]="lang.translate('unanswered.searchPlaceholder')"
+        [ngModel]="search()"
+        (ngModelChange)="onSearchChange($event)"
+      />
+    </label>
+  </div>
+
+  @if (notice()) {
+    <div class="uq__notice" role="status">
+      <span class="material-symbols-outlined">school</span>
+      {{ notice() }}
+      <button type="button" class="uq__notice-close" [attr.aria-label]="lang.translate('common.close')" (click)="notice.set(null)">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+  }
+
+  <div class="card uq__card">
+    @if (isLoading()) {
+      <div class="uq__status">
+        <span class="uq__spinner"></span>
+        {{ lang.translate('common.loading') }}
+      </div>
+    } @else if (loadError()) {
+      <p class="error-text uq__status">{{ loadError() }}</p>
+    } @else if (items().length === 0) {
+      <p class="uq__empty">{{ lang.translate(search() ? 'unanswered.noMatches' : 'unanswered.empty.' + activeTab()) }}</p>
+    } @else {
+      <ul class="uq__list">
+        @for (item of items(); track item.id) {
+          <li class="uq__item">
+            <div class="uq__question" dir="auto">{{ item.question }}</div>
+
+            <div class="uq__meta">
+              <span class="uq__meta-item" [class.uq__meta-item--muted]="!item.username && !item.email">
+                <span class="material-symbols-outlined">person</span>{{ userLabel(item) }}
+              </span>
+              <span class="uq__meta-item" [class.uq__meta-item--muted]="!item.company_name">
+                <span class="material-symbols-outlined">domain</span>{{ item.company_name || lang.translate('unanswered.noCompany') }}
+              </span>
+              @if (item.category_name) {
+                <span class="uq__meta-item"><span class="material-symbols-outlined">folder</span>{{ item.category_name }}</span>
+              }
+              <span class="uq__meta-item"><span class="material-symbols-outlined">schedule</span>{{ item.created_at | date: 'medium' }}</span>
+              @if (item.times_asked > 1) {
+                <span class="uq__badge">{{ lang.translate('unanswered.askedTimes').replace('{n}', '' + item.times_asked) }}</span>
+              }
+            </div>
+
+            @if (item.status === 'answered' && editingId() !== item.id) {
+              <div class="uq__answer">
+                <div class="uq__answer-label">{{ lang.translate('unanswered.answer') }}</div>
+                <div class="uq__answer-text" dir="auto">{{ item.answer }}</div>
+                <div class="uq__answer-by">
+                  {{ lang.translate('unanswered.answeredBy').replace('{name}', item.answered_by_name || '—') }}
+                  · {{ item.answered_at | date: 'medium' }}
+                </div>
+              </div>
+            }
+
+            @if (editingId() === item.id) {
+              <div class="uq__editor">
+                <label class="uq__field-label" [for]="'uq-answer-' + item.id">{{ lang.translate('unanswered.answer') }}</label>
+                <textarea
+                  [id]="'uq-answer-' + item.id"
+                  class="uq__textarea"
+                  rows="4"
+                  dir="auto"
+                  [placeholder]="lang.translate('unanswered.answerPlaceholder')"
+                  [ngModel]="draftAnswer()"
+                  (ngModelChange)="draftAnswer.set($event)"
+                ></textarea>
+                <div class="uq__editor-row">
+                  <div class="uq__category">
+                    <span class="uq__field-label">{{ lang.translate('unanswered.category') }}</span>
+                    <app-dropdown-select
+                      [options]="categoryOptions()"
+                      [value]="draftCategoryId()"
+                      (valueChange)="draftCategoryId.set($event)"
+                    />
+                  </div>
+                  <p class="uq__hint">{{ lang.translate('unanswered.answerHint') }}</p>
+                </div>
+                @if (rowError()) {
+                  <p class="error-text">{{ rowError() }}</p>
+                }
+                <div class="uq__actions">
+                  <button type="button" class="btn btn-secondary" [disabled]="busyId() === item.id" (click)="closeEditor()">
+                    {{ lang.translate('common.cancel') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    [disabled]="busyId() === item.id || !draftAnswer().trim()"
+                    (click)="saveAnswer(item)"
+                  >
+                    {{ busyId() === item.id ? lang.translate('unanswered.saving') : lang.translate('unanswered.saveAnswer') }}
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <div class="uq__actions">
+                @switch (item.status) {
+                  @case ('open') {
+                    <button type="button" class="btn btn-secondary" [disabled]="busyId() === item.id" (click)="dismiss(item)">
+                      {{ lang.translate('unanswered.dismiss') }}
+                    </button>
+                    <button type="button" class="btn btn-primary" [disabled]="busyId() === item.id" (click)="startEditing(item)">
+                      {{ lang.translate('unanswered.answerIt') }}
+                    </button>
+                  }
+                  @case ('answered') {
+                    <button type="button" class="btn btn-secondary" [disabled]="busyId() === item.id" (click)="removeAnswer(item)">
+                      {{ lang.translate('unanswered.removeAnswer') }}
+                    </button>
+                    <button type="button" class="btn btn-primary" [disabled]="busyId() === item.id" (click)="startEditing(item)">
+                      {{ lang.translate('unanswered.editAnswer') }}
+                    </button>
+                  }
+                  @case ('dismissed') {
+                    <button type="button" class="btn btn-secondary" [disabled]="busyId() === item.id" (click)="reopen(item)">
+                      {{ lang.translate('unanswered.reopen') }}
+                    </button>
+                  }
+                }
+              </div>
+            }
+          </li>
+        }
+      </ul>
+      @if (rowError() && editingId() === null) {
+        <p class="error-text uq__status">{{ rowError() }}</p>
+      }
+      @if (totalPages() > 1) {
+        <div class="uq__pagination">
+          <app-pagination
+            [page]="page()"
+            [totalPages]="totalPages()"
+            [total]="total()"
+            [itemLabel]="lang.translate('unanswered.itemLabel')"
+            (pageChange)="onPageChange($event)"
+          />
+        </div>
+      }
+    }
+  </div>
+</div>

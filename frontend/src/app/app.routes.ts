@@ -133,6 +133,16 @@ export const routes: Routes = [
           import('./features/admin/analytics/analytics').then((m) => m.Analytics),
       },
       {
+        // Questions the bot couldn't answer, for the tenant admin to answer
+        // (each answer becomes knowledge the bot uses from then on).
+        path: 'unanswered-questions',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/admin/unanswered-questions/unanswered-questions').then(
+            (m) => m.UnansweredQuestions,
+          ),
+      },
+      {
         // companyAdminGuard: a company_admin answers only their own
         // company's tickets (enforced on the backend too). Distinct path
         // from /support-tickets below (the member-facing "my tickets" view).

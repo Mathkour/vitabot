@@ -21,6 +21,9 @@
         @if (item.route === '/support-tickets-admin' && pendingTicketsCount() > 0) {
           <span class="sidebar__badge">{{ pendingTicketsCount() }}</span>
         }
+        @if (item.route === '/unanswered-questions' && openUnansweredCount() > 0) {
+          <span class="sidebar__badge">{{ openUnansweredCount() }}</span>
+        }
       </a>
     }
 

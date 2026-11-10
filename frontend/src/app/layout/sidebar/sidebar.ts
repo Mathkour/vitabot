@@ -5,6 +5,7 @@ import { LanguageService } from '../../core/services/language.service';
 import { OdooAccessService } from '../../core/services/odoo-access.service';
 import { SupportTicketsService } from '../../core/services/support-tickets.service';
 import { TenantThemeService } from '../../core/services/tenant-theme.service';
+import { UnansweredQuestionsService } from '../../core/services/unanswered-questions.service';
 
 const PENDING_TICKETS_POLL_MS = 45000;
 
@@ -25,6 +26,7 @@ const FULL_ADMIN_NAV_ITEMS: NavItem[] = [
   { labelKey: 'nav.adminAssistant', route: '/admin-assistant', icon: 'support_agent' },
   { labelKey: 'nav.faq', route: '/faq-management', icon: 'help_center' },
   { labelKey: 'nav.analytics', route: '/analytics', icon: 'insights' },
+  { labelKey: 'nav.unansweredQuestions', route: '/unanswered-questions', icon: 'contact_support' },
   { labelKey: 'nav.supportTickets', route: '/support-tickets-admin', icon: 'confirmation_number' },
   // Settings temporarily hidden — do not delete. Matching route is also
   // commented out in app.routes.ts.
@@ -51,6 +53,8 @@ export class Sidebar implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly supportTicketsService = inject(SupportTicketsService);
   private readonly odooAccess = inject(OdooAccessService);
+  private readonly unansweredQuestionsService = inject(UnansweredQuestionsService);
+  readonly openUnansweredCount = this.unansweredQuestionsService.openCountValue;
   private pendingTicketsPollTimer: ReturnType<typeof setInterval> | null = null;
 
   readonly pendingTicketsCount = signal(0);
@@ -110,5 +114,9 @@ export class Sidebar implements OnInit, OnDestroy {
       next: (res) => this.pendingTicketsCount.set(res.count),
       error: () => {},
     });
+    // Tenant admins only — the endpoint (and page) deny company_admin.
+    if (!this.authService.isCompanyAdmin()) {
+      this.unansweredQuestionsService.refreshOpenCount();
+    }
   }
 }

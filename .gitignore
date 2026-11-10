@@ -13,6 +13,8 @@ frontend/dist/
 
 backup.sql
 *.sql
+# Schema migrations are code, not data dumps — keep them in git.
+!migrations/*.sql
 *.zip
 widget/node_modules/
 widget/dist/

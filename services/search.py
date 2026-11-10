@@ -13,7 +13,11 @@ async def search_chunk(
         SELECT content, document_id, slide_number, slide_title, embedding <=> $1 AS distance
         FROM chunks
         WHERE tenant_id = $2
-          AND ($3::uuid IS NULL OR category_id = $3)
+          -- A chunk with no category applies to every category: that's how
+          -- an admin's answer from Unanswered Questions without a category
+          -- is found whichever category the user asks in. (Uploaded
+          -- documents always have a category, so this only affects those.)
+          AND ($3::uuid IS NULL OR category_id = $3 OR category_id IS NULL)
         ORDER BY embedding <=> $1
         LIMIT $4
         """,
