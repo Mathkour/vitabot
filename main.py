@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException,Depends, UploadFile,File,Form,Response,Header, Request
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -66,6 +67,14 @@ app=FastAPI(lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(asyncpg.DataError)
+async def _invalid_value_handler(request: Request, exc: asyncpg.DataError):
+    # A malformed id/value in the URL or body (e.g. "not-a-uuid" where the
+    # column is uuid) is the client's mistake: answer 400, not a 500 crash.
+    logger.info(f"Rejected invalid value on {request.method} {request.url.path}: {exc}")
+    return JSONResponse(status_code=400, content={"detail": "Invalid value in the request"})
 
 
 def _ask_rate_limit_key(request: Request) -> str:
@@ -356,8 +365,16 @@ async def update_user(
             if owner is None:
                 raise HTTPException(status_code=404, detail="Company not found")
 
+        # The role (and a company_admin's company, which scopes what they
+        # see) is carried in the login token, so changing either bumps
+        # token_version: existing sessions stop working and the user signs in
+        # again with the new access (a demoted admin must not keep admin
+        # rights until a long-lived token expires).
         await conn.execute(
-            "UPDATE users SET role = $1, company_id = $2 WHERE id = $3 AND tenant_id = $4",
+            "UPDATE users SET role = $1, company_id = $2, "
+            "token_version = token_version + CASE WHEN role <> $1 "
+            "  OR (role = 'company_admin' AND company_id IS DISTINCT FROM $2::uuid) THEN 1 ELSE 0 END "
+            "WHERE id = $3 AND tenant_id = $4",
             role, company_id, user_id, tenant_id,
         )
     await log_detached(scope.tenant_id, current_user_id, 'user.update', _label + (f' → role {body.role}' if body.role else '') + (' → company changed' if 'company_id' in body.model_fields_set else ''))
@@ -1953,6 +1970,19 @@ async def rate(
     # UPDATE (covers a concurrent re-rate). Only score/feedback change —
     # created_at stays put so the analytics time series isn't reshuffled.
     async with db.tenant_connection(tenant_id) as conn:
+        # A changed rating is new feedback: clear any earlier admin review so
+        # a fresh 👎 on an answer once marked fine shows up for review again.
+        # Savepoint + except: the review columns only exist once migration
+        # 2026-11-10b is applied, and rating must never fail because of it.
+        try:
+            async with conn.transaction():
+                await conn.execute(
+                    "UPDATE ratings SET review_status = NULL, reviewed_by = NULL, reviewed_at = NULL "
+                    "WHERE tenant_id = $1 AND message_id = $2 AND score <> $3",
+                    tenant_id, body.message_id, body.score,
+                )
+        except asyncpg.UndefinedColumnError:
+            pass
         updated = await conn.execute(
             "UPDATE ratings SET score = $3, feedback = COALESCE($4, feedback) "
             "WHERE tenant_id = $1 AND message_id = $2",

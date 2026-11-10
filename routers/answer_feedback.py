@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 import db
+from services.search import like_pattern
 from core.auth import get_current_user_id, require_admin
 from routers.unanswered_questions import save_answer
 from services.activity import log_activity
@@ -50,7 +51,7 @@ async def list_feedback(
 ):
     if status not in STATUSES:
         raise HTTPException(status_code=400, detail=f"status must be one of {', '.join(STATUSES)}")
-    pattern = f"%{search.strip()}%" if search and search.strip() else None
+    pattern = like_pattern(search)
     base = f"""
         FROM ratings r
         JOIN messages m ON m.id = r.message_id AND m.tenant_id = r.tenant_id
@@ -122,6 +123,7 @@ async def _load_rating(conn, rating_id: str, tenant_id: str):
         JOIN messages m ON m.id = r.message_id AND m.tenant_id = r.tenant_id
         LEFT JOIN conversations cv ON cv.id = m.conversation_id
         WHERE r.id = $1 AND r.tenant_id = $2 AND r.score = -1
+        FOR UPDATE OF r
         """,
         rating_id, tenant_id,
     )

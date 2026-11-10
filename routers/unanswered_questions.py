@@ -19,6 +19,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 import db
+from services.search import like_pattern
 from core.auth import get_current_user_id, require_admin
 from services.activity import log_activity
 from services.embeddings import get_embedding
@@ -26,6 +27,8 @@ from services.embeddings import get_embedding
 router = APIRouter(prefix="/unanswered-questions", tags=["unanswered-questions"])
 
 STATUSES = ("open", "answered", "dismissed")
+# Keeps the question + answer chunk well inside the embedding model's input limit.
+MAX_ANSWER_CHARS = 4000
 # Fixed filename that identifies the per-tenant document holding answer
 # chunks; display names are what admins see.
 ANSWERS_DOC_FILENAME = "__answered_questions__"
@@ -92,7 +95,7 @@ async def list_unanswered_questions(
 ):
     if status not in STATUSES:
         raise HTTPException(status_code=400, detail=f"status must be one of {', '.join(STATUSES)}")
-    pattern = f"%{search.strip()}%" if search and search.strip() else None
+    pattern = like_pattern(search)
     try:
         async with db.tenant_connection(tenant_id) as conn:
             base = """
@@ -174,8 +177,13 @@ async def save_answer(conn, tenant_id: str, admin_id: str, question_id: str, ans
     -insensitive) is answered along with it, sharing one knowledge-base
     chunk. Returns how many questions were answered. Also used by Answer
     Feedback when an admin corrects a thumbs-down answer."""
+    if len(answer) > MAX_ANSWER_CHARS:
+        raise HTTPException(status_code=400, detail=f"Answer is too long (max {MAX_ANSWER_CHARS} characters)")
+    # FOR UPDATE: two admins saving at once are applied one after the other,
+    # so the second sees the first one's chunk and edits it instead of
+    # creating a duplicate knowledge entry.
     target = await conn.fetchrow(
-        "SELECT id, question, status, chunk_id FROM unanswered_questions WHERE id = $1 AND tenant_id = $2",
+        "SELECT id, question, status, chunk_id FROM unanswered_questions WHERE id = $1 AND tenant_id = $2 FOR UPDATE",
         question_id, tenant_id,
     )
     if target is None:
@@ -187,7 +195,12 @@ async def save_answer(conn, tenant_id: str, admin_id: str, question_id: str, ans
             raise HTTPException(status_code=400, detail="Unknown category")
 
     content = f"Question: {target['question'].strip()}\nAnswer: {answer}"
-    embedding = await get_embedding(content)
+    try:
+        embedding = await get_embedding(content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=503, detail="The AI service didn't respond, so the answer wasn't saved. Please try again.",
+        ) from e
     embedding_str = "[" + ",".join(f"{x:.10f}" for x in embedding) + "]"
 
     chunk_id = target["chunk_id"]

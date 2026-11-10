@@ -51,3 +51,13 @@ async def search_media(
     if row and row["distance"] < threshold:
         return dict(row)
     return None
+
+
+def like_pattern(text: str | None) -> str | None:
+    """Admin search text -> an ILIKE "contains" pattern, or None when empty.
+    %, _ and backslash are escaped so they match literally (searching "50%"
+    must not match everything); backslash is Postgres' default LIKE escape."""
+    if not text or not text.strip():
+        return None
+    escaped = text.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"

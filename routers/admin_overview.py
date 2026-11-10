@@ -13,6 +13,7 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 import db
+from services.search import like_pattern
 from core.auth import require_admin
 
 router = APIRouter(tags=["admin-overview"])
@@ -160,7 +161,7 @@ async def activity_log(
 ):
     """Who changed what. `area` filters by the action prefix (e.g. 'faq',
     'document', 'user', 'question')."""
-    pattern = f"%{search.strip()}%" if search and search.strip() else None
+    pattern = like_pattern(search)
     area_prefix = f"{area.strip()}.%" if area and area.strip() else None
     base = """
         FROM activity_log a LEFT JOIN users u ON u.id = a.user_id
@@ -208,7 +209,7 @@ async def search_conversations(
     """Message-level search across every user's conversations. A hit links
     to that user's conversation page. `only_disliked` limits it to bot
     answers rated thumbs-down; `company_id='none'` means users without one."""
-    pattern = f"%{q.strip()}%" if q and q.strip() else None
+    pattern = like_pattern(q)
     no_company = company_id == "none"
     company = None if (no_company or not company_id) else company_id
     base = """

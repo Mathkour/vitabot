@@ -73,3 +73,42 @@ class BrokenConn:
 @pytest.mark.parametrize("exc", [asyncpg.UndefinedTableError("activity_log missing"), RuntimeError("boom")])
 def test_activity_log_never_raises(exc):
     asyncio.run(log_activity(BrokenConn(exc), TENANT, USER, "faq.create", "q"))
+
+
+@pytest.mark.parametrize("text, expected", [
+    (None, None),
+    ("   ", None),
+    ("refund", "%refund%"),
+    ("50%", r"%50\%%"),
+    ("discount_code", r"%discount\_code%"),
+    (r"a\b", r"%a\\b%"),
+])
+def test_like_pattern_escapes_wildcards(text, expected):
+    from services.search import like_pattern
+    assert like_pattern(text) == expected
+
+
+def test_malformed_value_is_400_not_500(monkeypatch):
+    """A malformed id that reaches the database (asyncpg.DataError) becomes a
+    clean 400 for every endpoint, via the app-wide handler."""
+    import contextlib
+    import db
+
+    class Conn:
+        async def fetchrow(self, *_a):
+            raise asyncpg.InvalidTextRepresentationError('invalid input syntax for type uuid: "x"')
+
+    @contextlib.asynccontextmanager
+    async def fake_tc(_t):
+        yield Conn()
+
+    monkeypatch.setattr(db, "tenant_connection", fake_tc)
+    main.app.dependency_overrides[get_current_tenant] = lambda: TENANT
+    main.app.dependency_overrides[get_current_user_id] = lambda: USER
+    main.app.dependency_overrides[get_current_role] = lambda: "admin"
+    try:
+        resp = TestClient(main.app, raise_server_exceptions=False).post("/unanswered-questions/x/dismiss")
+    finally:
+        main.app.dependency_overrides.clear()
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Invalid value in the request"
