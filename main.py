@@ -412,6 +412,56 @@ async def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     await log_detached(scope.tenant_id, actor_id, 'user.delete', _label)
     return {"status": "deleted"}
+
+
+class ResetPasswordRequest(BaseModel):
+    password: str
+
+
+MIN_PASSWORD_LENGTH = 8
+
+
+@app.post("/users/{user_id}/password")
+@limiter.limit("20/minute")
+async def reset_user_password(
+    request: Request,
+    user_id: str,
+    body: ResetPasswordRequest,
+    scope: UserScope = Depends(require_admin_or_company_admin),
+    actor_id: str = Depends(get_current_user_id),
+):
+    """An admin sets a new password for a user (the app has no self-service
+    reset). Same reach as editing users: a tenant admin for anyone in the
+    tenant except a superadmin; a company_admin only for plain members of
+    their own company. Signs the user out everywhere (token_version)."""
+    password = body.password or ""
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(status_code=400, detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+    try:
+        hashed = hash_password(password)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Password is too long")
+
+    tenant_id = scope.tenant_id
+    async with db.tenant_connection(tenant_id) as conn:
+        target = await conn.fetchrow(
+            "SELECT id, role, company_id, COALESCE(username, email) AS label FROM users WHERE id = $1 AND tenant_id = $2",
+            user_id, tenant_id,
+        )
+        if target is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        if target["role"] == "superadmin":
+            raise HTTPException(status_code=403, detail="A superadmin's password can't be reset here")
+        if scope.role == "company_admin" and (
+            str(target["company_id"]) != str(scope.company_id) or target["role"] != "member"
+        ):
+            raise HTTPException(status_code=403, detail="You can only reset passwords of members of your company")
+        await conn.execute(
+            "UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2 AND tenant_id = $3",
+            hashed, user_id, tenant_id,
+        )
+    await log_detached(tenant_id, actor_id, 'user.password_reset', target["label"])
+    return {"status": "updated", "signed_out": str(user_id) == str(actor_id)}
     
 
 class RegisterRequest(BaseModel):

@@ -228,6 +228,69 @@ export class Users implements OnInit {
       });
   }
 
+  // ──────────── Reset password ────────────
+
+  readonly resetUser = signal<CompanyUser | null>(null);
+  readonly resetPasswordValue = signal('');
+  readonly resetSaving = signal(false);
+  readonly resetError = signal<string | null>(null);
+  readonly resetDone = signal(false);
+
+  /** Mirrors the backend rule: tenant admins reset anyone but a superadmin;
+   * company admins only plain members (they only see their own company). */
+  canResetPassword(user: CompanyUser): boolean {
+    return this.isTenantAdmin() ? user.role !== 'superadmin' : user.role === 'member';
+  }
+
+  openResetPassword(user: CompanyUser): void {
+    this.resetUser.set(user);
+    this.resetPasswordValue.set('');
+    this.resetError.set(null);
+    this.resetDone.set(false);
+  }
+
+  closeResetPassword(): void {
+    if (this.resetSaving()) return;
+    this.resetUser.set(null);
+    this.resetPasswordValue.set('');
+  }
+
+  generatePassword(): void {
+    // No look-alike characters (0/O, 1/l/I), so it can be read out or typed.
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    const bytes = new Uint32Array(12);
+    crypto.getRandomValues(bytes);
+    this.resetPasswordValue.set(Array.from(bytes, (b) => chars[b % chars.length]).join(''));
+  }
+
+  saveResetPassword(): void {
+    const user = this.resetUser();
+    const password = this.resetPasswordValue();
+    if (!user || this.resetSaving()) return;
+    if (password.length < 8) {
+      this.resetError.set(this.lang.translate('users.resetTooShort'));
+      return;
+    }
+    this.resetSaving.set(true);
+    this.resetError.set(null);
+    this.usersService.resetPassword(user.id, password).subscribe({
+      next: (res) => {
+        this.resetSaving.set(false);
+        if (res.signed_out) {
+          // Own password: this session was just invalidated too.
+          this.authService.logout();
+          return;
+        }
+        this.resetDone.set(true);
+      },
+      error: (err: HttpErrorResponse) => {
+        const detail = err.error?.detail;
+        this.resetError.set(typeof detail === 'string' ? detail : this.lang.translate('users.resetFailed'));
+        this.resetSaving.set(false);
+      },
+    });
+  }
+
   async deleteUser(user: CompanyUser): Promise<void> {
     const confirmed = await this.confirmDialog.confirm({
       title: this.lang.translate('users.deleteTitle'),

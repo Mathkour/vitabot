@@ -3,7 +3,11 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { skipLoadingIndicator } from '../interceptors/loading-indicator.interceptor';
-import { UnansweredQuestionPage, UnansweredQuestionStatus } from '../models/unanswered-question.models';
+import {
+  AnsweredQuestionNotice,
+  UnansweredQuestionPage,
+  UnansweredQuestionStatus,
+} from '../models/unanswered-question.models';
 
 @Injectable({ providedIn: 'root' })
 export class UnansweredQuestionsService {
@@ -44,5 +48,19 @@ export class UnansweredQuestionsService {
 
   reopen(id: string): Observable<{ status: string }> {
     return this.http.post<{ status: string }>(`${this.base}/${id}/reopen`, {});
+  }
+
+  // ── The asker's side (any signed-in user, own questions only) ──
+
+  /** My questions an admin answered that I haven't seen yet. Polled by the topbar bell. */
+  myNewAnswers(): Observable<AnsweredQuestionNotice[]> {
+    return this.http.get<AnsweredQuestionNotice[]>(`${this.base}/me/answered`, { context: skipLoadingIndicator() });
+  }
+
+  /** Marks the given answers (or, with no ids, all of mine) as seen. */
+  markAnswersSeen(ids?: string[]): Observable<{ updated: number }> {
+    return this.http.post<{ updated: number }>(`${this.base}/me/answered/seen`, ids ? { ids } : {}, {
+      context: skipLoadingIndicator(),
+    });
   }
 }

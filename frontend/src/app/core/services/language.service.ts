@@ -148,6 +148,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'activity.action.user.create': 'added a user',
     'activity.action.user.update': 'changed a user',
     'activity.action.user.delete': 'deleted a user',
+    'activity.action.user.password_reset': "reset a user's password",
     'activity.action.user.import': 'imported users',
     'activity.action.company.create': 'created a company',
     'activity.action.company.rename': 'renamed a company',
@@ -193,6 +194,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'unanswered.couldNotUpdate': 'Could not update the question.',
     'unanswered.itemLabel': 'questions',
     'nav.videos': 'Videos',
+    'nav.myTickets': 'My tickets',
     'nav.supportTickets': 'Support Tickets',
 
     // SSO landing page
@@ -211,6 +213,8 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'topbar.superAdmin': 'Super Admin',
     'topbar.notifications': 'Notifications',
     'topbar.noNotificationsYet': 'No notifications yet',
+    'topbar.questionAnswered': 'Your question was answered',
+    'topbar.viewAllTickets': 'View all my tickets',
 
     // Common / shared
     'common.cancel': 'Cancel',
@@ -299,6 +303,16 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'users.couldNotChangeRole': 'Could not change the role.',
     'users.deleteTitle': 'Delete user?',
     'users.deleteMessage': '"{name}" will lose access immediately.',
+    'users.resetPassword': "Reset password",
+    'users.resetNewPassword': "New password",
+    'users.resetPlaceholder': "At least 8 characters",
+    'users.resetHint': "Share the new password with the user privately. They will be signed out of all devices and must sign in again.",
+    'users.resetGenerate': "Generate",
+    'users.resetSave': "Set password",
+    'users.resetDone': "Password updated. The user has been signed out everywhere.",
+    'users.resetClose': "Done",
+    'users.resetTooShort': "The password must be at least 8 characters.",
+    'users.resetFailed': "Could not reset the password.",
     'users.creating': 'Creating...',
     'users.createAccount': 'Create account',
     'users.importTitle': 'Import Users from Excel',
@@ -896,6 +910,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'activity.action.user.create': 'أضاف مستخدمًا',
     'activity.action.user.update': 'عدّل مستخدمًا',
     'activity.action.user.delete': 'حذف مستخدمًا',
+    'activity.action.user.password_reset': 'أعاد تعيين كلمة مرور مستخدم',
     'activity.action.user.import': 'استورد مستخدمين',
     'activity.action.company.create': 'أنشأ شركة',
     'activity.action.company.rename': 'أعاد تسمية شركة',
@@ -938,6 +953,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'unanswered.couldNotUpdate': 'تعذر تحديث السؤال.',
     'unanswered.itemLabel': 'أسئلة',
     'nav.videos': 'الفيديوهات',
+    'nav.myTickets': 'تذاكري',
     'nav.supportTickets': 'تذاكر الدعم',
 
     // SSO landing page
@@ -956,6 +972,8 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'topbar.superAdmin': 'مسؤول عام',
     'topbar.notifications': 'الإشعارات',
     'topbar.noNotificationsYet': 'لا توجد إشعارات بعد',
+    'topbar.questionAnswered': 'تمت الإجابة على سؤالك',
+    'topbar.viewAllTickets': 'عرض كل تذاكري',
 
     // Common / shared
     'common.cancel': 'إلغاء',
@@ -1044,6 +1062,16 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'users.couldNotChangeRole': 'تعذر تغيير الدور.',
     'users.deleteTitle': 'حذف المستخدم؟',
     'users.deleteMessage': 'رح يفقد "{name}" الوصول فوراً.',
+    'users.resetPassword': "إعادة تعيين كلمة المرور",
+    'users.resetNewPassword': "كلمة المرور الجديدة",
+    'users.resetPlaceholder': "8 أحرف على الأقل",
+    'users.resetHint': "شارك كلمة المرور الجديدة مع المستخدم بشكل خاص. سيتم تسجيل خروجه من جميع الأجهزة وعليه تسجيل الدخول من جديد.",
+    'users.resetGenerate': "توليد",
+    'users.resetSave': "تعيين كلمة المرور",
+    'users.resetDone': "تم تحديث كلمة المرور، وتم تسجيل خروج المستخدم من جميع الأجهزة.",
+    'users.resetClose': "تم",
+    'users.resetTooShort': "يجب أن تكون كلمة المرور 8 أحرف على الأقل.",
+    'users.resetFailed': "تعذرت إعادة تعيين كلمة المرور.",
     'users.creating': 'جارٍ الإنشاء...',
     'users.createAccount': 'إنشاء الحساب',
     'users.importTitle': 'استيراد مستخدمين من إكسل',

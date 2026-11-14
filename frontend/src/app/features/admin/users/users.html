@@ -146,6 +146,16 @@
                   </td>
                 }
                 <td class="users__table-actions">
+                  @if (canResetPassword(user)) {
+                    <button
+                      type="button"
+                      class="users__delete-btn users__reset-btn"
+                      [title]="lang.translate('users.resetPassword')"
+                      (click)="openResetPassword(user)"
+                    >
+                      <span class="material-symbols-outlined">key</span>
+                    </button>
+                  }
                   <button
                     type="button"
                     class="users__delete-btn"
@@ -162,6 +172,58 @@
       </div>
     }
   </div>
+
+  @if (resetUser(); as user) {
+    <div class="users__overlay" (click)="closeResetPassword()">
+      <div class="card users__modal" (click)="$event.stopPropagation()">
+        <h3 class="users__modal-title">{{ lang.translate('users.resetPassword') }}</h3>
+        <p class="users__subtext" dir="auto">{{ user.username || user.email }} · {{ user.email }}</p>
+
+        @if (resetDone()) {
+          <p class="users__reset-done">
+            <span class="material-symbols-outlined">check_circle</span>
+            {{ lang.translate('users.resetDone') }}
+          </p>
+          <div class="users__modal-actions">
+            <button type="button" class="btn btn-primary" (click)="closeResetPassword()">
+              {{ lang.translate('users.resetClose') }}
+            </button>
+          </div>
+        } @else {
+          <form class="users__form" (ngSubmit)="saveResetPassword()" autocomplete="off">
+            <div class="form-field">
+              <label for="reset-password">{{ lang.translate('users.resetNewPassword') }}</label>
+              <input
+                id="reset-password"
+                type="password"
+                appPasswordToggle
+                autocomplete="new-password"
+                [placeholder]="lang.translate('users.resetPlaceholder')"
+                [ngModel]="resetPasswordValue()"
+                (ngModelChange)="resetPasswordValue.set($event)"
+                name="resetPassword"
+              />
+            </div>
+            <p class="users__subtext">{{ lang.translate('users.resetHint') }}</p>
+            @if (resetError()) {
+              <p class="error-text users__error">{{ resetError() }}</p>
+            }
+            <div class="users__modal-actions">
+              <button type="button" class="btn btn-secondary users__generate-btn" [disabled]="resetSaving()" (click)="generatePassword()">
+                {{ lang.translate('users.resetGenerate') }}
+              </button>
+              <button type="button" class="btn btn-secondary" [disabled]="resetSaving()" (click)="closeResetPassword()">
+                {{ lang.translate('common.cancel') }}
+              </button>
+              <button type="submit" class="btn btn-primary" [disabled]="resetSaving()">
+                {{ resetSaving() ? '…' : lang.translate('users.resetSave') }}
+              </button>
+            </div>
+          </form>
+        }
+      </div>
+    </div>
+  }
 
   @if (!usersLoading() && !usersListError() && totalPages() > 1) {
     <app-pagination

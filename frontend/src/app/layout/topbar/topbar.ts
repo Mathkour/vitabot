@@ -4,8 +4,10 @@ import { AuthService } from '../../core/services/auth.service';
 import { LanguageService } from '../../core/services/language.service';
 import { OdooAccessService } from '../../core/services/odoo-access.service';
 import { UnseenSupportTicket } from '../../core/models/support-ticket.models';
+import { AnsweredQuestionNotice } from '../../core/models/unanswered-question.models';
 import { SupportTicketsService } from '../../core/services/support-tickets.service';
 import { TenantThemeService } from '../../core/services/tenant-theme.service';
+import { UnansweredQuestionsService } from '../../core/services/unanswered-questions.service';
 import { ThemeService } from '../../core/services/theme.service';
 
 const VITA_CARE_TENANT_NAME = 'Vita Care';
@@ -29,6 +31,7 @@ export class Topbar implements OnInit, OnDestroy {
   readonly tenantTheme = inject(TenantThemeService);
   private readonly supportTicketsService = inject(SupportTicketsService);
   private readonly odooAccess = inject(OdooAccessService);
+  private readonly unansweredQuestions = inject(UnansweredQuestionsService);
   private readonly router = inject(Router);
   private unseenTicketsPollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -47,6 +50,9 @@ export class Topbar implements OnInit, OnDestroy {
   readonly unseenResolvedTicketsCount = signal(0);
   readonly isNotificationsOpen = signal(false);
   readonly unseenTickets = signal<UnseenSupportTicket[]>([]);
+  /** The user's own questions an admin has since answered (not yet seen). */
+  readonly newAnswers = signal<AnsweredQuestionNotice[]>([]);
+  readonly notificationCount = computed(() => this.unseenResolvedTicketsCount() + this.newAnswers().length);
 
   readonly showSupportBell = computed(
     () => !this.auth.isAdmin() && !this.auth.isSuperadmin() && !this.auth.isCompanyAdmin(),
@@ -127,6 +133,15 @@ export class Topbar implements OnInit, OnDestroy {
     this.isNotificationsOpen.set(false);
   }
 
+  /** Marks the answer seen and opens the conversation it was asked in
+   * (chat History), where the admin's answer was added as a reply. */
+  openAnswerFromNotification(notice: AnsweredQuestionNotice): void {
+    this.closeNotifications();
+    this.newAnswers.update((items) => items.filter((n) => n.id !== notice.id));
+    this.unansweredQuestions.markAnswersSeen([notice.id]).subscribe({ error: () => {} });
+    this.router.navigate(['/chat'], notice.conversation_id ? { queryParams: { history: notice.conversation_id } } : {});
+  }
+
   openTicketFromNotification(ticket: UnseenSupportTicket): void {
     this.closeNotifications();
     this.router.navigate(['/support-tickets'], { queryParams: { ticketId: ticket.id } });
@@ -152,6 +167,10 @@ export class Topbar implements OnInit, OnDestroy {
     });
     this.supportTicketsService.myUnseenTickets().subscribe({
       next: (tickets) => this.unseenTickets.set(tickets),
+      error: () => {},
+    });
+    this.unansweredQuestions.myNewAnswers().subscribe({
+      next: (answers) => this.newAnswers.set(answers),
       error: () => {},
     });
   }

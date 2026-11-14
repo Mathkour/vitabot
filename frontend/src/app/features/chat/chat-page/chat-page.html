@@ -298,7 +298,7 @@
       } @else {
         <div class="chat__history-list">
           @for (convo of historyConversations(); track convo.conversation_id) {
-            <div class="chat__history-item">
+            <div class="chat__history-item" [id]="'history-' + convo.conversation_id">
               <button
                 type="button"
                 class="chat__history-item-toggle"

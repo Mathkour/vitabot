@@ -22,3 +22,12 @@ export interface UnansweredQuestionPage {
   total: number;
   counts: Record<UnansweredQuestionStatus, number>;
 }
+
+/** One of the signed-in user's own questions an admin has since answered (topbar bell). */
+export interface AnsweredQuestionNotice {
+  id: string;
+  question: string;
+  answer: string;
+  answered_at: string;
+  conversation_id: string | null;
+}

@@ -41,6 +41,14 @@ export class UsersService {
     return this.http.delete<{ status: string }>(`${environment.apiBaseUrl}/users/${userId}`);
   }
 
+  /** Admin sets a new password; the user is signed out everywhere. */
+  resetPassword(userId: string, password: string): Observable<{ status: string; signed_out: boolean }> {
+    return this.http.post<{ status: string; signed_out: boolean }>(
+      `${environment.apiBaseUrl}/users/${userId}/password`,
+      { password },
+    );
+  }
+
   importPreview(file: File): Observable<ImportPreviewResponse> {
     const formData = new FormData();
     formData.append('file', file);

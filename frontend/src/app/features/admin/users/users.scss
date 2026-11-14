@@ -202,6 +202,28 @@
   }
 }
 
+.users__reset-btn {
+  margin-inline-end: 6px;
+
+  &:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+}
+
+.users__generate-btn {
+  margin-inline-end: auto;
+}
+
+.users__reset-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+  color: var(--color-success);
+  font-weight: 600;
+}
+
 .users__list-card {
   padding: 0;
   overflow: hidden;

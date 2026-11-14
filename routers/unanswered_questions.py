@@ -13,6 +13,8 @@ these endpoints answer 503.
 """
 from __future__ import annotations
 
+import re
+
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
@@ -20,13 +22,17 @@ from pydantic import BaseModel
 
 import db
 from services.search import like_pattern
-from core.auth import get_current_user_id, require_admin
+from core.auth import get_current_tenant, get_current_user_id, require_admin
 from services.activity import log_activity
 from services.embeddings import get_embedding
 
 router = APIRouter(prefix="/unanswered-questions", tags=["unanswered-questions"])
 
 STATUSES = ("open", "answered", "dismissed")
+# Lead line of the reply added to the asker's conversation once answered.
+_ANSWERED_PREFIX_EN = "Our team has answered your question:\n\n"
+_ANSWERED_PREFIX_AR = "أجاب فريقنا على سؤالك:\n\n"
+_ARABIC_RE = re.compile(r"[؀-ۿ]")
 # Keeps the question + answer chunk well inside the embedding model's input limit.
 MAX_ANSWER_CHARS = 4000
 # Fixed filename that identifies the per-tenant document holding answer
@@ -219,11 +225,24 @@ async def save_answer(conn, tenant_id: str, admin_id: str, question_id: str, ans
             tenant_id, doc_id, content, embedding_str, category_id,
         )
 
+    # Questions answered for the first time now (not edits): their askers'
+    # conversations get the answer as a new bot reply below.
+    newly_answered = await conn.fetch(
+        """
+        SELECT DISTINCT conversation_id FROM unanswered_questions
+        WHERE tenant_id = $1 AND status = 'open' AND conversation_id IS NOT NULL
+          AND (id = $2 OR lower(btrim(question)) = lower(btrim($3)))
+        """,
+        tenant_id, question_id, target["question"],
+    )
+
+    # user_seen_at = NULL: the asker gets a "your question was answered"
+    # notification (again, if an admin edits the answer).
     result = await conn.execute(
         """
         UPDATE unanswered_questions
         SET status = 'answered', answer = $1, answered_by = $2, answered_at = now(),
-            chunk_id = $3, category_id = $4
+            chunk_id = $3, category_id = $4, user_seen_at = NULL
         WHERE tenant_id = $5
           AND (id = $6
                OR chunk_id = $3
@@ -231,6 +250,13 @@ async def save_answer(conn, tenant_id: str, admin_id: str, question_id: str, ans
         """,
         answer, admin_id, chunk_id, category_id, tenant_id, question_id, target["question"],
     )
+    reply = (_ANSWERED_PREFIX_AR if _ARABIC_RE.search(target["question"]) else _ANSWERED_PREFIX_EN) + answer
+    for r in newly_answered:
+        await conn.execute(
+            "INSERT INTO messages (tenant_id, conversation_id, role, content, created_at) "
+            "VALUES ($1, $2, 'assistant', $3, clock_timestamp())",
+            tenant_id, r["conversation_id"], reply,
+        )
     await log_activity(
         conn, tenant_id, admin_id,
         "question.answer" if target["status"] != "answered" else "question.edit_answer",
@@ -328,3 +354,70 @@ async def remove_answer(
     except asyncpg.UndefinedTableError as e:
         _migration_guard(e)
     return {"status": "open", "updated": int(result.split()[-1])}
+
+
+# ──────────── The asker's side: "your question was answered" ────────────
+#
+# Any signed-in user, for their own questions only. Shown in the topbar
+# bell next to support-ticket replies. Until migration
+# 2026-11-14c_answer_notifications.sql is applied these return nothing.
+
+@router.get("/me/answered")
+async def my_new_answers(
+    tenant_id: str = Depends(get_current_tenant),
+    user_id: str = Depends(get_current_user_id),
+):
+    """The caller's questions an admin answered that they haven't seen yet."""
+    try:
+        async with db.tenant_connection(tenant_id) as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, question, answer, answered_at, conversation_id
+                FROM unanswered_questions
+                WHERE tenant_id = $1 AND user_id = $2 AND status = 'answered'
+                  AND answered_at > COALESCE(user_seen_at, '-infinity'::timestamptz)
+                ORDER BY answered_at DESC
+                LIMIT 20
+                """,
+                tenant_id, user_id,
+            )
+    except (asyncpg.UndefinedTableError, asyncpg.UndefinedColumnError):
+        return []
+    return [
+        {
+            "id": str(r["id"]), "question": r["question"], "answer": r["answer"],
+            "answered_at": r["answered_at"],
+            "conversation_id": str(r["conversation_id"]) if r["conversation_id"] else None,
+        }
+        for r in rows
+    ]
+
+
+class SeenRequest(BaseModel):
+    # Omitted = mark all of the caller's answers seen.
+    ids: list[str] | None = None
+
+
+@router.post("/me/answered/seen")
+async def mark_my_answers_seen(
+    body: SeenRequest,
+    tenant_id: str = Depends(get_current_tenant),
+    user_id: str = Depends(get_current_user_id),
+):
+    try:
+        async with db.tenant_connection(tenant_id) as conn:
+            if body.ids is None:
+                result = await conn.execute(
+                    "UPDATE unanswered_questions SET user_seen_at = now() "
+                    "WHERE tenant_id = $1 AND user_id = $2 AND status = 'answered'",
+                    tenant_id, user_id,
+                )
+            else:
+                result = await conn.execute(
+                    "UPDATE unanswered_questions SET user_seen_at = now() "
+                    "WHERE tenant_id = $1 AND user_id = $2 AND id = ANY($3::uuid[])",
+                    tenant_id, user_id, body.ids,
+                )
+    except (asyncpg.UndefinedTableError, asyncpg.UndefinedColumnError):
+        return {"updated": 0}
+    return {"updated": int(result.split()[-1])}

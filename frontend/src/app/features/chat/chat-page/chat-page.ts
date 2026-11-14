@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, Subscription } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { Category, SuggestedQuestion } from '../../../core/models/category.models';
@@ -46,6 +47,8 @@ export class ChatPage implements OnInit, OnDestroy {
   private readonly conversationsService = inject(ConversationsService);
   private readonly supportTicketsService = inject(SupportTicketsService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   readonly lang = inject(LanguageService);
   private conversationId: string | null = null;
   private readonly rawObjectUrls: string[] = [];
@@ -117,9 +120,23 @@ export class ChatPage implements OnInit, OnDestroy {
     this.categoriesService.listPublished().subscribe({
       next: (cats) => this.categories.set(cats),
     });
+    // ?history=<conversationId>: from the "your question was answered"
+    // notification. Opens History with that conversation expanded, where
+    // the admin's answer was added as a reply. Subscribed (not a snapshot):
+    // the notification is usually clicked while already on /chat.
+    this.historyParamSub = this.route.queryParamMap.subscribe((params) => {
+      const historyId = params.get('history');
+      if (!historyId) return;
+      this.expandedHistoryIds.set(new Set([historyId]));
+      this.openHistory(historyId);
+      this.router.navigate([], { queryParams: { history: null }, queryParamsHandling: 'merge', replaceUrl: true });
+    });
   }
 
+  private historyParamSub: Subscription | null = null;
+
   ngOnDestroy(): void {
+    this.historyParamSub?.unsubscribe();
     this.rawObjectUrls.forEach((url) => URL.revokeObjectURL(url));
     this.clearTimer();
     this.stopAudio();
@@ -235,7 +252,7 @@ export class ChatPage implements OnInit, OnDestroy {
   readonly historyConversations = signal<ConversationSummary[]>([]);
   readonly expandedHistoryIds = signal<Set<string>>(new Set());
 
-  openHistory(): void {
+  openHistory(focusConversationId?: string): void {
     this.isHistoryOpen.set(true);
     this.historyError.set(null);
     this.historyLoading.set(true);
@@ -244,6 +261,11 @@ export class ChatPage implements OnInit, OnDestroy {
       next: (res) => {
         this.historyConversations.set(res.conversations);
         this.historyLoading.set(false);
+        if (focusConversationId) {
+          setTimeout(() =>
+            document.getElementById('history-' + focusConversationId)?.scrollIntoView({ block: 'start' }),
+          );
+        }
       },
       error: (err: HttpErrorResponse) => {
         const detail = err.error?.detail;
