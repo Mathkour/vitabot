@@ -9,7 +9,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -53,7 +52,6 @@ export class VitaInsights implements OnInit, OnDestroy {
   private readonly odooService = inject(OdooService);
   private readonly odooSuggestedQuestionsService = inject(OdooSuggestedQuestionsService);
   private readonly auth = inject(AuthService);
-  private readonly location = inject(Location);
   private readonly router = inject(Router);
   readonly lang = inject(LanguageService);
 
@@ -63,6 +61,8 @@ export class VitaInsights implements OnInit, OnDestroy {
   private readonly rawObjectUrls: string[] = [];
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
+  /** The in-flight ask/transcribe request, so Back can cancel it. */
+  private requestSubscription: Subscription | null = null;
   private pendingSend = false;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private currentAudio: HTMLAudioElement | null = null;
@@ -83,13 +83,39 @@ export class VitaInsights implements OnInit, OnDestroy {
   readonly isAddingQuestion = signal(false);
   readonly isAdmin = computed(() => this.auth.isAdmin());
 
-  /** Return to the previous page; fall back to chat when the page was opened directly. */
+  /**
+   * Two-step back: inside a conversation it returns to the Ask Odoo start
+   * screen (the suggested questions); from the start screen it leaves to the
+   * in-app page the user came from. Uses the router's own previous
+   * navigation rather than browser history, which can point outside the app
+   * (e.g. Odoo, when Ask Odoo was opened through the SSO link) or at the
+   * sign-in page.
+   */
   goBack(): void {
-    if (window.history.length > 1) {
-      this.location.back();
-    } else {
-      this.router.navigate(['/chat']);
+    if (this.messages().length > 0 || this.isLoading() || this.voiceStatus() !== 'idle') {
+      this.startOver();
+      return;
     }
+    const previous = this.router.lastSuccessfulNavigation()?.previousNavigation?.finalUrl;
+    const previousUrl = previous ? this.router.serializeUrl(previous) : null;
+    const usable =
+      previousUrl &&
+      !/^\/(auth|sso-login|access-denied|vita-insights)(\/|\?|$)/.test(previousUrl);
+    this.router.navigateByUrl(usable ? previousUrl : this.auth.isAdmin() ? '/dashboard' : '/chat');
+  }
+
+  /** Clears the conversation and cancels anything still in flight for it. */
+  private startOver(): void {
+    this.requestSubscription?.unsubscribe();
+    this.requestSubscription = null;
+    this.stopRecording(false);
+    this.stopAudio();
+    this.rawObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    this.rawObjectUrls.length = 0;
+    this.messages.set([]);
+    this.errorMessage.set(null);
+    this.isLoading.set(false);
+    this.voiceStatus.set('idle');
   }
 
   readonly recordingTime = computed(() => {
@@ -123,6 +149,7 @@ export class VitaInsights implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.rawObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    this.requestSubscription?.unsubscribe();
     this.clearTimer();
     this.stopAudio();
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
@@ -152,7 +179,7 @@ export class VitaInsights implements OnInit, OnDestroy {
     this.isLoading.set(true);
     this.scrollToBottom();
 
-    this.odooService.ask(question, history).subscribe({
+    this.requestSubscription = this.odooService.ask(question, history).subscribe({
       next: (res) => {
         this.messages.update((items) => [
           ...items,
@@ -387,7 +414,7 @@ export class VitaInsights implements OnInit, OnDestroy {
   }
 
   private transcribeAudio(audioBlob: Blob): void {
-    this.odooService.transcribe(audioBlob).subscribe({
+    this.requestSubscription = this.odooService.transcribe(audioBlob).subscribe({
       next: (res) => {
         const text = res.text?.trim();
         if (text) {
@@ -425,7 +452,7 @@ export class VitaInsights implements OnInit, OnDestroy {
     this.voiceStatus.set('thinking');
     this.errorMessage.set(null);
 
-    this.odooService.ask(question, history).subscribe({
+    this.requestSubscription = this.odooService.ask(question, history).subscribe({
       next: (res) => {
         const newMessage: VitaInsightsMessage = {
           id: this.generateId(),

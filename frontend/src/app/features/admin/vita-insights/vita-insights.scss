@@ -192,72 +192,92 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  color: var(--color-text-secondary);
-  font-size: 14px;
+  padding: 16px 0;
+  text-align: center;
 }
 
 .vita-insights__empty-icon {
-  font-size: 40px;
-  opacity: 0.5;
-}
-
-.vita-insights__suggestions {
-  width: 100%;
-  max-width: 560px;
-  margin-top: 16px;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 16px;
-  border-radius: var(--radius-card);
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: var(--color-info-bg);
+  color: var(--color-accent);
+  font-size: 26px;
 }
 
-.vita-insights__suggestions-label {
-  margin: 0 0 2px;
-  font-size: 12px;
+.vita-insights__empty-title {
+  margin: 0;
+  font-size: 18px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--color-text);
+}
+
+.vita-insights__empty-text {
+  margin: 4px 0 20px;
+  font-size: 14px;
   color: var(--color-text-secondary);
 }
 
-.vita-insights__suggestions-list {
+/* One question per row: reads as a list of starting points rather than a
+   wrap of uneven chips, and an odd count (e.g. five) never leaves an orphan. */
+.vita-insights__suggestions {
+  width: 100%;
+  max-width: 520px;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.vita-insights__suggestion-chip {
-  max-width: 230px;
+.vita-insights__suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
   text-align: start;
-  white-space: normal;
-  word-break: break-word;
-  padding: 7px 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--color-border);
   background: var(--color-card);
   color: var(--color-text);
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease,
-    transform 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 
-  &:hover {
+  &:hover,
+  &:focus-visible {
     border-color: var(--color-accent);
-    color: var(--color-accent);
     background: var(--color-info-bg);
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(17, 24, 39, 0.08);
   }
+
+  &:hover .vita-insights__suggestion-arrow,
+  &:focus-visible .vita-insights__suggestion-arrow {
+    color: var(--color-accent);
+    transform: translateX(2px);
+  }
+}
+
+.vita-insights__suggestion-arrow {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease, color 0.15s ease;
+
+  :host-context([dir='rtl']) & {
+    transform: scaleX(-1);
+  }
+}
+
+:host-context([dir='rtl']) .vita-insights__suggestion:hover .vita-insights__suggestion-arrow,
+:host-context([dir='rtl']) .vita-insights__suggestion:focus-visible .vita-insights__suggestion-arrow {
+  transform: scaleX(-1) translateX(2px);
 }
 
 .vita-insights__row {

@@ -765,7 +765,8 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Vita Insights
     'vitaInsights.title': 'Ask Odoo',
     'vitaInsights.subtitle': 'Ask questions about Vita Care\'s sales, products, and customers.',
-    'vitaInsights.emptyPrompt': 'Ask a question to get started.',
+    'vitaInsights.emptyTitle': 'What would you like to know?',
+    'vitaInsights.emptyPrompt': 'Pick a question below, or type your own.',
     'vitaInsights.inputPlaceholder': 'Ask about sales, products, customers...',
     'vitaInsights.forbidden': 'You don\'t have access to Vita Insights.',
     'vitaInsights.unreachable': 'Vita Insights is unreachable right now. Please try again later.',
@@ -1533,7 +1534,8 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Vita Insights
     'vitaInsights.title': 'Ask Odoo',
     'vitaInsights.subtitle': 'اسأل عن مبيعات ومنتجات وعملاء Vita Care.',
-    'vitaInsights.emptyPrompt': 'اطرح سؤالاً للبدء.',
+    'vitaInsights.emptyTitle': 'ماذا تودّ أن تعرف؟',
+    'vitaInsights.emptyPrompt': 'اختر سؤالاً من الأسفل، أو اكتب سؤالك.',
     'vitaInsights.inputPlaceholder': 'اسأل عن المبيعات والمنتجات والعملاء...',
     'vitaInsights.forbidden': 'ليس لديك صلاحية الوصول إلى Vita Insights.',
     'vitaInsights.unreachable': 'Vita Insights غير متاح حالياً. يرجى المحاولة لاحقاً.',

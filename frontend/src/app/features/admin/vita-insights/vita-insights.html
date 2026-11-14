@@ -75,23 +75,22 @@
   <div class="vita-insights__messages" #scrollContainer>
     @if (messages().length === 0) {
       <div class="vita-insights__empty">
-        <span class="material-symbols-outlined vita-insights__empty-icon">forum</span>
-        <p>{{ lang.translate('vitaInsights.emptyPrompt') }}</p>
+        <span class="material-symbols-outlined vita-insights__empty-icon">insights</span>
+        <h2 class="vita-insights__empty-title">{{ lang.translate('vitaInsights.emptyTitle') }}</h2>
+        <p class="vita-insights__empty-text">{{ lang.translate('vitaInsights.emptyPrompt') }}</p>
 
         @if (suggestedQuestions().length > 0) {
           <div class="vita-insights__suggestions">
-            <p class="vita-insights__suggestions-label">{{ lang.translate('chat.guideTitle') }}</p>
-            <div class="vita-insights__suggestions-list">
-              @for (q of suggestedQuestions(); track q.id) {
-                <button
-                  type="button"
-                  class="vita-insights__suggestion-chip"
-                  (click)="selectSuggestedQuestion(q)"
-                >
-                  {{ displaySuggestedQuestion(q) }}
-                </button>
-              }
-            </div>
+            @for (q of suggestedQuestions(); track q.id) {
+              <button
+                type="button"
+                class="vita-insights__suggestion"
+                (click)="selectSuggestedQuestion(q)"
+              >
+                <span class="vita-insights__suggestion-text" dir="auto">{{ displaySuggestedQuestion(q) }}</span>
+                <span class="material-symbols-outlined vita-insights__suggestion-arrow">arrow_forward</span>
+              </button>
+            }
           </div>
         }
       </div>
