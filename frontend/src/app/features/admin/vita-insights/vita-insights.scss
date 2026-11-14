@@ -10,6 +10,31 @@
   min-height: 0;
 }
 
+.vita-insights__back-btn {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: -8px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  .material-symbols-outlined { font-size: 17px; }
+
+  &:hover {
+    background: var(--color-bg);
+    color: var(--color-accent);
+  }
+}
+
 .vita-insights__header {
   display: flex;
   align-items: flex-start;

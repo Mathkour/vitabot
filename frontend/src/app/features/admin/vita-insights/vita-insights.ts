@@ -9,7 +9,9 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { OdooChartData, OdooHistoryMessage, OdooSuggestedQuestion } from '../../../core/models/odoo.models';
 import { AuthService } from '../../../core/services/auth.service';
@@ -51,6 +53,8 @@ export class VitaInsights implements OnInit, OnDestroy {
   private readonly odooService = inject(OdooService);
   private readonly odooSuggestedQuestionsService = inject(OdooSuggestedQuestionsService);
   private readonly auth = inject(AuthService);
+  private readonly location = inject(Location);
+  private readonly router = inject(Router);
   readonly lang = inject(LanguageService);
 
   @ViewChild('scrollContainer') private scrollContainer?: ElementRef<HTMLDivElement>;
@@ -78,6 +82,15 @@ export class VitaInsights implements OnInit, OnDestroy {
   readonly newQuestionText = signal('');
   readonly isAddingQuestion = signal(false);
   readonly isAdmin = computed(() => this.auth.isAdmin());
+
+  /** Return to the previous page; fall back to chat when the page was opened directly. */
+  goBack(): void {
+    if (window.history.length > 1) {
+      this.location.back();
+    } else {
+      this.router.navigate(['/chat']);
+    }
+  }
 
   readonly recordingTime = computed(() => {
     const s = this.recordingSeconds();

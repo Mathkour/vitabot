@@ -1,4 +1,9 @@
 <div class="vita-insights">
+  <button type="button" class="vita-insights__back-btn" (click)="goBack()">
+    <span class="material-symbols-outlined">arrow_back</span>
+    {{ lang.translate('common.back') }}
+  </button>
+
   <div class="vita-insights__header">
     <div class="vita-insights__header-text">
       <h2>{{ lang.translate('vitaInsights.title') }}</h2>
