@@ -69,9 +69,11 @@ export class SupportTicketsService {
     );
   }
 
-  sendAdminMessage(ticketId: string, content: string): Observable<SupportTicketMessage> {
+  /** saveToKnowledge (tenant admins): also teach the bot the ticket's question with this answer. */
+  sendAdminMessage(ticketId: string, content: string, saveToKnowledge = false): Observable<SupportTicketMessage> {
     return this.http.post<SupportTicketMessage>(`${environment.apiBaseUrl}/support-tickets/${ticketId}/messages`, {
       content,
+      save_to_knowledge: saveToKnowledge,
     });
   }
 

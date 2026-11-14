@@ -1,12 +1,13 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   AdminSupportTicket,
   SupportTicketMessage,
   SupportTicketStatus,
 } from '../../../core/models/support-ticket.models';
+import { AuthService } from '../../../core/services/auth.service';
 import { ConfirmDialogService } from '../../../core/services/confirm-dialog.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { SupportTicketsService } from '../../../core/services/support-tickets.service';
@@ -20,7 +21,13 @@ import { SupportTicketsService } from '../../../core/services/support-tickets.se
 export class AdminSupportTickets implements OnInit {
   private readonly supportTicketsService = inject(SupportTicketsService);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly auth = inject(AuthService);
   readonly lang = inject(LanguageService);
+
+  /** The bot's knowledge is tenant-wide, so company admins don't get this. */
+  readonly canSaveToKnowledge = computed(() => this.auth.isAdmin() || this.auth.isSuperadmin());
+  readonly saveToKnowledge = signal(false);
+  readonly savedToKnowledge = signal(false);
 
   readonly activeTab = signal<SupportTicketStatus>('pending');
   readonly tickets = signal<AdminSupportTicket[]>([]);
@@ -54,6 +61,8 @@ export class AdminSupportTickets implements OnInit {
     this.openTicketId.set(ticket.id);
     this.draftMessage.set('');
     this.threadError.set(null);
+    this.saveToKnowledge.set(false);
+    this.savedToKnowledge.set(false);
     this.loadMessages(ticket.id);
   }
 
@@ -63,11 +72,15 @@ export class AdminSupportTickets implements OnInit {
 
     this.isSendingMessage.set(true);
     this.threadError.set(null);
+    this.savedToKnowledge.set(false);
+    const save = this.canSaveToKnowledge() && this.saveToKnowledge();
 
-    this.supportTicketsService.sendAdminMessage(ticket.id, content).subscribe({
+    this.supportTicketsService.sendAdminMessage(ticket.id, content, save).subscribe({
       next: () => {
         this.isSendingMessage.set(false);
         this.draftMessage.set('');
+        this.saveToKnowledge.set(false);
+        this.savedToKnowledge.set(save);
         this.loadMessages(ticket.id);
       },
       error: (err: HttpErrorResponse) => {

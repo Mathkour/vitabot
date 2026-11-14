@@ -88,6 +88,25 @@
                     [ngModel]="draftMessage()"
                     (ngModelChange)="draftMessage.set($event)"
                   ></textarea>
+                  @if (canSaveToKnowledge()) {
+                    <label class="tickets-admin__save-kb">
+                      <input
+                        type="checkbox"
+                        [ngModel]="saveToKnowledge()"
+                        (ngModelChange)="saveToKnowledge.set($event)"
+                      />
+                      <span>
+                        {{ lang.translate('supportTicketsAdmin.saveToKnowledge') }}
+                        <small>{{ lang.translate('supportTicketsAdmin.saveToKnowledgeHint') }}</small>
+                      </span>
+                    </label>
+                  }
+                  @if (savedToKnowledge()) {
+                    <p class="tickets-admin__saved-kb">
+                      <span class="material-symbols-outlined">school</span>
+                      {{ lang.translate('supportTicketsAdmin.savedToKnowledge') }}
+                    </p>
+                  }
                   <div class="tickets-admin__item-actions">
                     <button
                       type="button"

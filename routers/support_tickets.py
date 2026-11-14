@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import db
+from routers.unanswered_questions import save_answer
 from services.activity import label_for, log_detached
 from core.auth import get_current_tenant, get_current_user_id, require_admin_or_company_admin, UserScope
 
@@ -15,6 +16,44 @@ class CreateTicketRequest(BaseModel):
 
 class SendMessageRequest(BaseModel):
     content: str
+    # Admin replies only: also teach the bot this answer (the ticket's
+    # question + this reply), so anyone asking it again gets it.
+    save_to_knowledge: bool = False
+
+
+async def _save_ticket_answer_to_knowledge(conn, tenant_id: str, admin_user_id: str, ticket_id: str, answer: str) -> None:
+    """Saves the ticket's question with this answer through Unanswered
+    Questions' save_answer, so it's searchable by /ask and editable or
+    removable on that page like any other answered question. Reuses the
+    question's existing entry when there is one (the bot logs it when it
+    offers support), so answering the same question twice edits one
+    knowledge entry instead of adding a duplicate."""
+    ticket = await conn.fetchrow(
+        "SELECT question, user_id, conversation_id FROM support_tickets WHERE id = $1 AND tenant_id = $2",
+        ticket_id, tenant_id,
+    )
+    question_id = await conn.fetchval(
+        """
+        SELECT id FROM unanswered_questions
+        WHERE tenant_id = $1 AND lower(btrim(question)) = lower(btrim($2))
+        ORDER BY (status = 'answered') DESC, (conversation_id = $3) DESC NULLS LAST, created_at DESC
+        LIMIT 1
+        """,
+        tenant_id, ticket["question"], ticket["conversation_id"],
+    )
+    if question_id is None:
+        question_id = await conn.fetchval(
+            "INSERT INTO unanswered_questions (tenant_id, user_id, conversation_id, question) "
+            "VALUES ($1, $2, $3, $4) RETURNING id",
+            tenant_id, ticket["user_id"], ticket["conversation_id"], ticket["question"],
+        )
+    await save_answer(conn, tenant_id, admin_user_id, str(question_id), answer, None)
+    # The ticket reply already notifies its asker; don't also ring the
+    # "your question was answered" bell for the same answer.
+    await conn.execute(
+        "UPDATE unanswered_questions SET user_seen_at = now() WHERE tenant_id = $1 AND id = $2",
+        tenant_id, question_id,
+    )
 
 
 async def _company_scoped_ticket_owner(conn, ticket_id: str, tenant_id: str) -> str | None:
@@ -255,6 +294,9 @@ async def send_admin_message(
     content = body.content.strip()
     if not content:
         raise HTTPException(status_code=400, detail="Message is required")
+    if body.save_to_knowledge and scope.role == "company_admin":
+        # The bot's knowledge is shared by the whole tenant.
+        raise HTTPException(status_code=403, detail="Only tenant admins can add answers to the bot's knowledge")
     async with db.tenant_connection(scope.tenant_id) as conn:
         if scope.role == "company_admin":
             owner_company = await _company_scoped_ticket_owner(conn, ticket_id, scope.tenant_id)
@@ -275,7 +317,12 @@ async def send_admin_message(
             """,
             scope.tenant_id, ticket_id, admin_user_id, content,
         )
-    return dict(row)
+        if body.save_to_knowledge:
+            # Same transaction: if the knowledge save fails (e.g. the AI
+            # embedding service is down, 503), the reply isn't sent either,
+            # so the admin can simply retry.
+            await _save_ticket_answer_to_knowledge(conn, scope.tenant_id, admin_user_id, ticket_id, content)
+    return {**dict(row), "saved_to_knowledge": body.save_to_knowledge}
 
 
 @router.post("/{ticket_id}/resolve")
