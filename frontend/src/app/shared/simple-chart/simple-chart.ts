@@ -9,16 +9,11 @@ export interface SimpleChartData {
 
 const PIE_SLICE_CAP = 8;
 
-interface BarGeometry {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  value: number;
-  valueLabel: string;
+interface BarRow {
   label: string;
-  labelX: number;
-  valueY: number;
+  valueLabel: string;
+  /** Bar length as a percentage of the largest value. */
+  percent: number;
 }
 
 interface PieSlice {
@@ -37,50 +32,26 @@ interface PieSlice {
 export class SimpleChart {
   readonly data = input.required<SimpleChartData>();
 
-  private static formatValue(value: number): string {
-    const rounded = Math.round(value * 100) / 100;
-    return rounded.toLocaleString();
+  /** One number format for the whole chart: two decimals if any value has
+   * a fraction, none otherwise (never 61,377.5 next to 32,819.79). Western
+   * digits with thousands separators, matching the answer text above it. */
+  private static formatter(values: number[]): Intl.NumberFormat {
+    const decimals = values.some((v) => Math.round(v * 100) % 100 !== 0) ? 2 : 0;
+    return new Intl.NumberFormat('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
 
-  private static truncateLabel(label: string, maxChars: number): string {
-    return label.length > maxChars ? `${label.slice(0, maxChars - 1)}…` : label;
-  }
-
-  readonly barChart = computed(() => {
+  /** Horizontal bars, one row per item: long names (product, customer)
+   * get the full row width and wrap instead of being cut to "BABY JOY BO…"
+   * under a narrow vertical bar. */
+  readonly barRows = computed<BarRow[]>(() => {
     const d = this.data();
-    const values = d.values;
-    const width = 320;
-    const height = 180;
-    const paddingTop = 26;
-    const paddingBottom = 34;
-    const paddingX = 10;
-    const plotWidth = width - paddingX * 2;
-    const plotHeight = height - paddingTop - paddingBottom;
-    const max = Math.max(...values, 1);
-    const n = Math.max(values.length, 1);
-    const slot = plotWidth / n;
-    const barWidth = Math.max(6, Math.min(28, slot * 0.55));
-    const baselineY = paddingTop + plotHeight;
-    const labelMaxChars = slot > 50 ? 12 : slot > 32 ? 8 : 5;
-
-    const bars: BarGeometry[] = values.map((v, i) => {
-      const barHeight = max > 0 ? (Math.max(v, 0) / max) * plotHeight : 0;
-      const x = paddingX + i * slot + (slot - barWidth) / 2;
-      const y = baselineY - barHeight;
-      return {
-        x,
-        y,
-        width: barWidth,
-        height: barHeight,
-        value: v,
-        valueLabel: SimpleChart.formatValue(v),
-        label: SimpleChart.truncateLabel(d.labels[i] ?? '', labelMaxChars),
-        labelX: x + barWidth / 2,
-        valueY: y - 6,
-      };
-    });
-
-    return { width, height, bars, baselineY, paddingX, plotWidth };
+    const max = Math.max(...d.values, 0) || 1;
+    const fmt = SimpleChart.formatter(d.values);
+    return d.values.map((v, i) => ({
+      label: d.labels[i] ?? '',
+      valueLabel: fmt.format(v),
+      percent: Math.max(0, (v / max) * 100),
+    }));
   });
 
   readonly pieChart = computed(() => {

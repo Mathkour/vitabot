@@ -2,40 +2,17 @@
   <p class="simple-chart__title">{{ data().title }}</p>
 
   @if (data().chartType === 'bar') {
-    <svg
-      class="simple-chart__svg"
-      [attr.viewBox]="'0 0 ' + barChart().width + ' ' + barChart().height"
-      preserveAspectRatio="xMidYMid meet"
-    >
-      <line
-        class="simple-chart__baseline"
-        [attr.x1]="barChart().paddingX"
-        [attr.y1]="barChart().baselineY"
-        [attr.x2]="barChart().paddingX + barChart().plotWidth"
-        [attr.y2]="barChart().baselineY"
-      />
-
-      @for (bar of barChart().bars; track $index) {
-        <rect
-          class="simple-chart__bar"
-          [attr.x]="bar.x"
-          [attr.y]="bar.y"
-          [attr.width]="bar.width"
-          [attr.height]="bar.height"
-          rx="3"
-        />
-        <text class="simple-chart__value-label" [attr.x]="bar.labelX" [attr.y]="bar.valueY">
-          {{ bar.valueLabel }}
-        </text>
-        <text
-          class="simple-chart__category-label"
-          [attr.x]="bar.labelX"
-          [attr.y]="barChart().baselineY + 16"
-        >
-          {{ bar.label }}
-        </text>
+    <div class="simple-chart__bars">
+      @for (row of barRows(); track $index) {
+        <div class="simple-chart__row">
+          <span class="simple-chart__row-label" [title]="row.label"><bdi>{{ row.label }}</bdi></span>
+          <span class="simple-chart__track">
+            <span class="simple-chart__fill" [style.width.%]="row.percent"></span>
+          </span>
+          <span class="simple-chart__row-value">{{ row.valueLabel }}</span>
+        </div>
       }
-    </svg>
+    </div>
   } @else {
     <div class="simple-chart__pie-row">
       <svg class="simple-chart__svg simple-chart__svg--pie" viewBox="0 0 180 180" preserveAspectRatio="xMidYMid meet">
