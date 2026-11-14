@@ -24,8 +24,12 @@ class FakeConn:
         self.user = user
 
     async def fetchrow(self, sql, *args):
-        if sql.startswith("SELECT company_id, odoo_client_key FROM users"):
-            return self.user
+        if "FROM users u" in sql and "LEFT JOIN companies" in sql:
+            if self.user is None:
+                return None
+            # Defaults: the company has Ask Odoo on and no connection of its
+            # own, i.e. the pre-admin-portal behaviour.
+            return {"email": "u@x.com", "ask_odoo_enabled": True, "odoo_connection_id": None, **self.user}
         if sql.startswith("SELECT email, username FROM users"):
             return {"email": "u@x.com", "username": "u"}
         raise AssertionError(f"unexpected fetchrow: {sql}")
@@ -33,7 +37,8 @@ class FakeConn:
 
 @pytest.fixture
 def env(monkeypatch):
-    state = {"tenant": VITA_CARE, "user": None, "connections": {}, "agent_calls": [], "embedded": False}
+    state = {"tenant": VITA_CARE, "user": None, "connections": {}, "agent_calls": [], "embedded": False,
+             "odoo_users": None, "odoo_down": False, "user_checks": 0}
 
     @contextlib.asynccontextmanager
     async def fake_tc(_tenant):
@@ -41,6 +46,9 @@ def env(monkeypatch):
 
     async def fake_client_conn(client_key):
         return state["connections"].get(client_key)
+
+    async def fake_conn_by_id(connection_id):
+        return state["connections"].get(connection_id)
 
     async def fake_embedding(_q):
         state["embedded"] = True
@@ -56,6 +64,16 @@ def env(monkeypatch):
     monkeypatch.setattr(core.auth, "VITA_CARE_TENANT_ID", VITA_CARE)
     monkeypatch.setattr(db, "tenant_connection", fake_tc)
     monkeypatch.setattr(main.odoo_service, "get_client_odoo_connection", fake_client_conn)
+    monkeypatch.setattr(main.odoo_service, "get_odoo_connection_by_id", fake_conn_by_id)
+
+    def fake_is_odoo_user(email, client=None):
+        state["user_checks"] += 1
+        if state["odoo_down"]:
+            raise main.odoo_service.OdooError("down")
+        return state["odoo_users"] is None or email in state["odoo_users"]  # None = everyone is
+
+    monkeypatch.setattr(main.odoo_service, "is_odoo_user", fake_is_odoo_user)
+    main._odoo_user_check_cache.clear()
     monkeypatch.setattr(main, "get_embedding", fake_embedding)
     monkeypatch.setattr(main, "search_chunk", fake_search_chunk)
     monkeypatch.setattr(main, "odoo_agent_ask", fake_agent)
@@ -145,3 +163,82 @@ def test_other_tenant_is_refused(env):
     assert client.get("/odoo/access").status_code == 403
     assert _ask(client).status_code == 403
     assert state["agent_calls"] == []
+
+
+# --- per-company switch and connection (admin portal) ------------------------
+
+COMPANY_CONN = {"url": "https://company.example", "db": "co", "username": "bot", "password": "pw2"}
+
+
+def test_company_switched_off_is_refused_even_with_working_odoo(env):
+    client, state = env
+    state["user"] = {"company_id": COMPANY, "odoo_client_key": "acme", "ask_odoo_enabled": False}
+    state["connections"] = {"acme": CLIENT_CONN}
+
+    access = client.get("/odoo/access").json()
+    assert access == {"allowed": False, "source": None, "reason": main.ODOO_DISABLED_FOR_COMPANY}
+    assert _ask(client).status_code == 403
+    assert state["agent_calls"] == []
+    assert state["embedded"] is False
+
+
+def test_company_connection_wins_over_users_sso_key(env):
+    client, state = env
+    state["user"] = {"company_id": COMPANY, "odoo_client_key": "acme", "odoo_connection_id": "conn-1"}
+    state["connections"] = {"acme": CLIENT_CONN, "conn-1": COMPANY_CONN}
+
+    assert _ask(client).status_code == 200
+    assert state["agent_calls"] == [COMPANY_CONN]
+
+
+def test_company_connection_without_sso_key(env):
+    """The admin-portal setup alone is enough: no Odoo SSO sign-in needed."""
+    client, state = env
+    state["user"] = {"company_id": COMPANY, "odoo_client_key": None, "odoo_connection_id": "conn-1"}
+    state["connections"] = {"conn-1": COMPANY_CONN}
+
+    assert client.get("/odoo/access").json()["source"] == "company"
+    assert _ask(client).status_code == 200
+    assert state["agent_calls"] == [COMPANY_CONN]
+
+
+# --- only Odoo's own users get answers ----------------------------------------
+
+def test_person_who_is_not_an_odoo_user_gets_nothing(env):
+    client, state = env
+    state["user"] = {"company_id": COMPANY, "odoo_client_key": None, "odoo_connection_id": "conn-1",
+                     "email": "ahmed.abdulhameed@vitacareonline.com"}
+    state["connections"] = {"conn-1": COMPANY_CONN}
+    state["odoo_users"] = {"abdulhamid@vitacareonline.com"}  # a different person
+
+    access = client.get("/odoo/access").json()
+    assert access == {"allowed": False, "source": None, "reason": main.NOT_AN_ODOO_USER}
+    assert _ask(client).status_code == 403
+    assert client.get("/odoo/dashboard").status_code == 403
+    assert state["agent_calls"] == []
+    assert state["embedded"] is False
+
+
+def test_vita_care_staff_must_be_odoo_users_too(env):
+    client, state = env
+    state["user"] = {"company_id": None, "odoo_client_key": None, "email": "staff@vitacare.example"}
+    state["odoo_users"] = set()
+    assert _ask(client).status_code == 403
+    assert state["agent_calls"] == []
+
+
+def test_odoo_unreachable_during_user_check_is_503_and_not_cached(env):
+    client, state = env
+    state["user"] = {"company_id": None, "odoo_client_key": None}
+    state["odoo_down"] = True
+    assert _ask(client).status_code == 503
+    state["odoo_down"] = False
+    assert _ask(client).status_code == 200
+
+
+def test_user_check_is_cached(env):
+    client, state = env
+    state["user"] = {"company_id": None, "odoo_client_key": None}
+    for _ in range(3):
+        client.get("/odoo/access")
+    assert state["user_checks"] == 1

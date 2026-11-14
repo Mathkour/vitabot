@@ -1,14 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Company } from '../../../core/models/company.models';
+import { Company, CompanyOdooRequest } from '../../../core/models/company.models';
 import { CompanyService } from '../../../core/services/company.service';
 import { ConfirmDialogService } from '../../../core/services/confirm-dialog.service';
 import { LanguageService } from '../../../core/services/language.service';
+import { PasswordToggleDirective } from '../../../shared/directives/password-toggle.directive';
 
 @Component({
   selector: 'app-companies',
-  imports: [FormsModule],
+  imports: [FormsModule, PasswordToggleDirective],
   templateUrl: './companies.html',
   styleUrl: './companies.scss',
 })
@@ -27,6 +28,20 @@ export class Companies implements OnInit {
 
   readonly editingId = signal<string | null>(null);
   readonly editingName = signal('');
+
+  // Ask Odoo settings dialog
+  readonly odooCompany = signal<Company | null>(null);
+  readonly odooLoading = signal(false);
+  readonly odooSaving = signal(false);
+  readonly odooTesting = signal(false);
+  readonly odooError = signal<string | null>(null);
+  readonly odooTestResult = signal<{ ok: boolean; message: string } | null>(null);
+  readonly odooHasPassword = signal(false);
+  readonly odooEnabled = signal(false);
+  readonly odooUrl = signal('');
+  readonly odooDb = signal('');
+  readonly odooUsername = signal('');
+  readonly odooPassword = signal('');
 
   ngOnInit(): void {
     this.load();
@@ -99,6 +114,85 @@ export class Companies implements OnInit {
 
     this.companyService.delete(company.id).subscribe({
       next: () => this.load(),
+    });
+  }
+
+  // ──────────── Ask Odoo per company ────────────
+
+  openOdoo(company: Company): void {
+    this.odooCompany.set(company);
+    this.odooError.set(null);
+    this.odooTestResult.set(null);
+    this.odooPassword.set('');
+    this.odooLoading.set(true);
+    this.companyService.getOdoo(company.id).subscribe({
+      next: (s) => {
+        this.odooEnabled.set(s.enabled);
+        this.odooUrl.set(s.url);
+        this.odooDb.set(s.db);
+        this.odooUsername.set(s.username);
+        this.odooHasPassword.set(s.has_password);
+        this.odooLoading.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.odooError.set(this.extractError(err, 'companies.odooCouldNotLoad'));
+        this.odooLoading.set(false);
+      },
+    });
+  }
+
+  closeOdoo(): void {
+    if (this.odooSaving()) return;
+    this.odooCompany.set(null);
+    this.odooPassword.set('');
+  }
+
+  private odooPayload(): CompanyOdooRequest {
+    return {
+      enabled: this.odooEnabled(),
+      url: this.odooUrl().trim(),
+      db: this.odooDb().trim(),
+      username: this.odooUsername().trim(),
+      password: this.odooPassword() || null,
+    };
+  }
+
+  testOdoo(): void {
+    const company = this.odooCompany();
+    if (!company || this.odooTesting()) return;
+    this.odooTesting.set(true);
+    this.odooTestResult.set(null);
+    this.odooError.set(null);
+    this.companyService.testOdoo(company.id, this.odooPayload()).subscribe({
+      next: (r) => {
+        this.odooTestResult.set({
+          ok: r.ok,
+          message: r.ok ? this.lang.translate('companies.odooTestOk') : (r.error ?? ''),
+        });
+        this.odooTesting.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.odooTestResult.set({ ok: false, message: this.extractError(err, 'companies.odooTestFailed') });
+        this.odooTesting.set(false);
+      },
+    });
+  }
+
+  saveOdoo(): void {
+    const company = this.odooCompany();
+    if (!company || this.odooSaving()) return;
+    this.odooSaving.set(true);
+    this.odooError.set(null);
+    this.companyService.saveOdoo(company.id, this.odooPayload()).subscribe({
+      next: () => {
+        this.odooSaving.set(false);
+        this.closeOdoo();
+        this.load();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.odooError.set(this.extractError(err, 'companies.odooCouldNotSave'));
+        this.odooSaving.set(false);
+      },
     });
   }
 

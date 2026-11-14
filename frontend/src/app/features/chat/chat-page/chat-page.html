@@ -76,7 +76,7 @@
           [class.chat__bubble--user]="message.role === 'user'"
           [class.chat__bubble--bot]="message.role === 'bot'"
         >
-          <p class="chat__bubble-text">{{ message.text }}</p>
+          <p class="chat__bubble-text" dir="auto">{{ message.text }}</p>
 
           @if (message.role === 'bot' && message.media?.type === 'link') {
             <div class="chat__media">

@@ -40,6 +40,7 @@
           <tr>
             <th>{{ lang.translate('companies.colName') }}</th>
             <th>{{ lang.translate('companies.colUserCount') }}</th>
+            <th>{{ lang.translate('companies.colAskOdoo') }}</th>
             <th></th>
           </tr>
         </thead>
@@ -61,6 +62,19 @@
                 }
               </td>
               <td>{{ company.user_count }}</td>
+              <td>
+                <button type="button" class="companies__odoo-btn" (click)="openOdoo(company)"
+                        [title]="lang.translate('companies.odooConfigure')">
+                  @if (company.ask_odoo_enabled) {
+                    <span class="companies__badge companies__badge--on">{{ lang.translate('companies.odooOn') }}</span>
+                  } @else if (company.odoo_configured) {
+                    <span class="companies__badge">{{ lang.translate('companies.odooOff') }}</span>
+                  } @else {
+                    <span class="companies__badge companies__badge--muted">{{ lang.translate('companies.odooNotSetUp') }}</span>
+                  }
+                  <span class="material-symbols-outlined">settings</span>
+                </button>
+              </td>
               <td class="companies__actions">
                 @if (editingId() === company.id) {
                   <button type="button" class="companies__action-btn" (click)="saveEdit(company)">
@@ -82,6 +96,73 @@
           }
         </tbody>
       </table>
+    </div>
+  }
+
+  @if (odooCompany(); as company) {
+    <div class="companies__overlay" (click)="closeOdoo()">
+      <div class="card companies__modal" (click)="$event.stopPropagation()">
+        <h3 class="companies__modal-title">{{ lang.translate('companies.odooTitle').replace('{name}', company.name) }}</h3>
+        <p class="companies__subtext">{{ lang.translate('companies.odooSubtitle') }}</p>
+
+        @if (odooLoading()) {
+          <div class="companies__loading">
+            <span class="companies__spinner"></span>
+            {{ lang.translate('common.loading') }}
+          </div>
+        } @else {
+          <form class="companies__odoo-form" (ngSubmit)="saveOdoo()" autocomplete="off">
+            <label class="companies__switch">
+              <input type="checkbox" [ngModel]="odooEnabled()" (ngModelChange)="odooEnabled.set($event)" name="odooEnabled" />
+              <span>{{ lang.translate('companies.odooEnable') }}</span>
+            </label>
+
+            <div class="form-field">
+              <label for="odoo-url">{{ lang.translate('companies.odooUrl') }}</label>
+              <input id="odoo-url" type="url" placeholder="https://company.odoo.com"
+                     [ngModel]="odooUrl()" (ngModelChange)="odooUrl.set($event)" name="odooUrl" />
+            </div>
+            <div class="form-field">
+              <label for="odoo-db">{{ lang.translate('companies.odooDb') }}</label>
+              <input id="odoo-db" type="text" [ngModel]="odooDb()" (ngModelChange)="odooDb.set($event)" name="odooDb" />
+            </div>
+            <div class="form-field">
+              <label for="odoo-username">{{ lang.translate('companies.odooUsername') }}</label>
+              <input id="odoo-username" type="text" autocomplete="off"
+                     [ngModel]="odooUsername()" (ngModelChange)="odooUsername.set($event)" name="odooUsername" />
+            </div>
+            <div class="form-field">
+              <label for="odoo-password">{{ lang.translate('companies.odooPassword') }}</label>
+              <input id="odoo-password" type="password" appPasswordToggle autocomplete="new-password"
+                     [placeholder]="odooHasPassword() ? lang.translate('companies.odooPasswordKeep') : ''"
+                     [ngModel]="odooPassword()" (ngModelChange)="odooPassword.set($event)" name="odooPassword" />
+            </div>
+
+            @if (odooTestResult(); as result) {
+              <p class="companies__test" [class.companies__test--ok]="result.ok" [class.error-text]="!result.ok">
+                <span class="material-symbols-outlined">{{ result.ok ? 'check_circle' : 'error' }}</span>
+                {{ result.message }}
+              </p>
+            }
+            @if (odooError()) {
+              <p class="error-text">{{ odooError() }}</p>
+            }
+
+            <div class="companies__modal-actions">
+              <button type="button" class="btn btn-secondary companies__test-btn" [disabled]="odooTesting() || odooSaving()" (click)="testOdoo()">
+                {{ odooTesting() ? lang.translate('companies.odooTesting') : lang.translate('companies.odooTest') }}
+              </button>
+              <span class="companies__spacer"></span>
+              <button type="button" class="btn btn-secondary" [disabled]="odooSaving()" (click)="closeOdoo()">
+                {{ lang.translate('common.cancel') }}
+              </button>
+              <button type="submit" class="btn btn-primary" [disabled]="odooSaving()">
+                {{ odooSaving() ? '…' : lang.translate('common.save') }}
+              </button>
+            </div>
+          </form>
+        }
+      </div>
     </div>
   }
 </div>

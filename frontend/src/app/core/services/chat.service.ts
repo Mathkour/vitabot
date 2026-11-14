@@ -1,12 +1,15 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { LanguageService } from './language.service';
 import { skipLoadingIndicator } from '../interceptors/loading-indicator.interceptor';
 import { AskRequest, AskResponse, RateRequest, RateResponse } from '../models/chat.models';
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
+  private readonly lang = inject(LanguageService);
+
   constructor(private readonly http: HttpClient) {}
 
   ask(payload: AskRequest): Observable<AskResponse> {
@@ -36,6 +39,8 @@ export class ChatService {
     // it the same way it already does for ask()/fetchMedia().
     const formData = new FormData();
     formData.append('file', audioBlob, 'audio.webm');
+    // A hint so Arabic speech is transcribed as Arabic, never translated.
+    formData.append('language', this.lang.lang());
     return this.http.post<{ text: string }>(
       `${environment.apiBaseUrl}/transcribe`,
       formData,

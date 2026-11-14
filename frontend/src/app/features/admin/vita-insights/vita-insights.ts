@@ -18,6 +18,7 @@ import { OdooService } from '../../../core/services/odoo.service';
 import { OdooSuggestedQuestionsService } from '../../../core/services/odoo-suggested-questions.service';
 import { SimpleChart, SimpleChartData } from '../../../shared/simple-chart/simple-chart';
 import { TtsVoice, VoiceSelect } from '../../../shared/voice-select/voice-select';
+import { MicLevelMonitor } from '../../../shared/utils/mic-level';
 
 type VoiceStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -311,6 +312,7 @@ export class VitaInsights implements OnInit, OnDestroy {
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
       this.audioChunks = [];
       const recorder = new MediaRecorder(stream);
+      const micLevel = new MicLevelMonitor(stream);
       this.mediaRecorder = recorder;
 
       recorder.ondataavailable = (e) => {
@@ -320,6 +322,7 @@ export class VitaInsights implements OnInit, OnDestroy {
       recorder.onstop = () => {
         // Release the microphone immediately.
         stream.getTracks().forEach((t) => t.stop());
+        const heardSound = micLevel.stop();
         const mimeType = recorder.mimeType || 'audio/webm';
         this.mediaRecorder = null;
         const audioBlob = new Blob(this.audioChunks, { type: mimeType });
@@ -333,6 +336,13 @@ export class VitaInsights implements OnInit, OnDestroy {
 
         if (audioBlob.size === 0) {
           this.voiceStatus.set('idle');
+          return;
+        }
+        if (!heardSound) {
+          // Muted mic / wrong input device: say so, rather than uploading
+          // silence and showing the misleading "couldn't understand that".
+          this.voiceStatus.set('idle');
+          this.errorMessage.set(this.lang.translate('common.micNoSound'));
           return;
         }
         this.transcribeAudio(audioBlob);

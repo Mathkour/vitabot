@@ -155,3 +155,120 @@
     border-color: var(--color-danger);
   }
 }
+
+/* ── Ask Odoo per company ───────────────────────────────────── */
+
+.companies__odoo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+
+  .material-symbols-outlined {
+    font-size: 18px;
+  }
+
+  &:hover {
+    color: var(--color-accent);
+  }
+}
+
+.companies__badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  white-space: nowrap;
+
+  &--on {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+  }
+
+  &--muted {
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+  }
+}
+
+.companies__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 21, 48, 0.55);
+  padding: 16px;
+}
+
+.companies__modal {
+  width: 100%;
+  max-width: 460px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.companies__modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.companies__odoo-form {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.companies__switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  font-weight: 600;
+  cursor: pointer;
+
+  input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--color-accent);
+  }
+}
+
+.companies__test {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+
+  .material-symbols-outlined {
+    font-size: 18px;
+  }
+
+  &--ok {
+    color: var(--color-success);
+  }
+}
+
+.companies__modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.companies__spacer {
+  flex: 1;
+}

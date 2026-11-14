@@ -180,16 +180,37 @@ def _is_arabic_or_english(text: str) -> bool:
     return recognized_ratio > 0.6
 
 
-def transcribe_audio(audio_bytes: bytes, filename: str = "audio.webm") -> str:
+_TRANSCRIBE_LANGUAGE_HINTS = {
+    "ar": "The speaker is most likely speaking Arabic.",
+    "en": "The speaker is most likely speaking English, but may speak Arabic.",
+}
+
+
+def transcribe_audio(audio_bytes: bytes, filename: str = "audio.webm", language_hint: str | None = None) -> str:
+    """language_hint: the user's UI language ("ar"/"en"), used only as a hint;
+    whatever language is actually spoken is what gets transcribed."""
     ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     mime_type = _AUDIO_MIME_BY_EXT.get(ext, "audio/webm")
+
+    # Without the "never translate" rule Gemini sometimes returns an English
+    # translation of Arabic (especially dialect) speech, which then makes the
+    # bot answer and speak in English.
+    prompt = (
+        "Transcribe this audio verbatim, in the language actually spoken. Never translate: "
+        "Arabic speech, including Egyptian, Gulf, Levantine or any other dialect, must be "
+        "written in Arabic script exactly as said; English speech in English. Keep English "
+        "words mixed into Arabic speech (system or menu names) as spoken. "
+        "Return only the transcript text, with no explanations, labels, or extra commentary. "
+        "If the audio has no speech, return an empty response."
+    )
+    hint = _TRANSCRIBE_LANGUAGE_HINTS.get((language_hint or "").lower())
+    if hint:
+        prompt += " " + hint
 
     response = gemini_client.models.generate_content(
         model=GEMINI_TRANSCRIBE_MODEL,
         contents=[
-            "Transcribe this audio verbatim. Return only the transcript text, "
-            "with no explanations, labels, or extra commentary. If the audio has "
-            "no speech, return an empty response.",
+            prompt,
             types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
         ],
     )

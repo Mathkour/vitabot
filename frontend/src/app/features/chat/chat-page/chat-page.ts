@@ -26,6 +26,7 @@ import { SupportTicketsService } from '../../../core/services/support-tickets.se
 import { DisplayNamePipe } from '../../../shared/pipes/display-name.pipe';
 import { extractYoutubeId } from '../../../shared/utils/youtube';
 import { TtsVoice } from '../../../shared/voice-select/voice-select';
+import { MicLevelMonitor } from '../../../shared/utils/mic-level';
 
 type VoiceStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -329,6 +330,7 @@ export class ChatPage implements OnInit, OnDestroy {
       this.errorMessage.set(null);
       this.audioChunks = [];
       const recorder = new MediaRecorder(stream);
+      const micLevel = new MicLevelMonitor(stream);
       this.mediaRecorder = recorder;
 
       recorder.ondataavailable = (e) => {
@@ -338,6 +340,7 @@ export class ChatPage implements OnInit, OnDestroy {
       recorder.onstop = () => {
         // Release the microphone immediately.
         stream.getTracks().forEach((t) => t.stop());
+        const heardSound = micLevel.stop();
         const mimeType = recorder.mimeType || 'audio/webm';
         this.mediaRecorder = null;
         const audioBlob = new Blob(this.audioChunks, { type: mimeType });
@@ -351,6 +354,13 @@ export class ChatPage implements OnInit, OnDestroy {
 
         if (audioBlob.size === 0) {
           this.voiceStatus.set('idle');
+          return;
+        }
+        if (!heardSound) {
+          // Muted mic / wrong input device: say so, rather than uploading
+          // silence and showing the misleading "couldn't understand that".
+          this.voiceStatus.set('idle');
+          this.errorMessage.set(this.lang.translate('common.micNoSound'));
           return;
         }
         this.transcribeAudio(audioBlob);

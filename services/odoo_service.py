@@ -428,12 +428,44 @@ class OdooClient:
             return []
         return [{"name": m["name"], "type": m.get("payment_type")} for m in methods]
 
+    def find_user_by_email(self, email: str, fields: list[str] | None = None) -> dict | None:
+        """The active Odoo user whose login (preferred) or email is exactly
+        `email`, case-insensitive; never a "contains" match."""
+        email = (email or "").strip()
+        if not email:
+            return None
+        fields = fields or ["name", "login", "email"]
+        for field in ("login", "email"):
+            users = self._execute_kw(
+                "res.users", "search_read",
+                [[(field, "=ilike", email)]],
+                {"fields": fields, "limit": 1},
+            )
+            if users:
+                return users[0]
+        return None
+
     def get_user_access_rights(self, name: str) -> dict:
-        users = self._execute_kw(
-            "res.users", "search_read",
-            [["|", ("name", "ilike", name), ("login", "ilike", name)]],
-            {"fields": ["name", "email", "groups_id"], "limit": 1},
-        )
+        name = (name or "").strip()
+        if "@" in name:
+            # An email identifies exactly one person: exact match only, and
+            # on a miss no candidate list, so another user's rights can't be
+            # shown as "probably you" (abdulhamid@ for ahmed.abdulhameed@).
+            user = self.find_user_by_email(name, ["name", "email", "groups_id"])
+            users = [user] if user else []
+            if not users:
+                return {
+                    "found": False,
+                    "searched_email": name,
+                    "note": "No Odoo user has this exact login or email. Do not suggest or "
+                            "substitute any other user.",
+                }
+        else:
+            users = self._execute_kw(
+                "res.users", "search_read",
+                [["|", ("name", "ilike", name), ("login", "ilike", name)]],
+                {"fields": ["name", "email", "groups_id"], "limit": 1},
+            )
         if not users:
             all_users = self._execute_kw(
                 "res.users", "search_read", [[]],
@@ -534,6 +566,65 @@ _default_client = OdooClient(ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_PASSWORD)
 
 def _resolve(client: OdooClient | None) -> OdooClient:
     return client or _default_client
+
+
+async def get_odoo_connection_by_id(connection_id) -> dict | None:
+    """A company's own Odoo connection (companies.odoo_connection_id), same
+    shape as get_client_odoo_connection."""
+    async with db.pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT odoo_url, odoo_db, odoo_username, odoo_password_encrypted "
+            "FROM odoo_client_connections WHERE id = $1",
+            connection_id,
+        )
+    if not row:
+        return None
+    return {
+        "url": row["odoo_url"],
+        "db": row["odoo_db"],
+        "username": row["odoo_username"],
+        "password": decrypt_value(row["odoo_password_encrypted"]),
+    }
+
+
+class _TimeoutTransport(xmlrpc.client.Transport):
+    def __init__(self, timeout: float):
+        super().__init__()
+        self._timeout = timeout
+
+    def make_connection(self, host):
+        conn = super().make_connection(host)
+        conn.timeout = self._timeout
+        return conn
+
+
+class _TimeoutSafeTransport(xmlrpc.client.SafeTransport):
+    def __init__(self, timeout: float):
+        super().__init__()
+        self._timeout = timeout
+
+    def make_connection(self, host):
+        conn = super().make_connection(host)
+        conn.timeout = self._timeout
+        return conn
+
+
+def check_odoo_login(url: str, db_name: str, username: str, password: str, timeout: float = 15) -> int:
+    """Logs in once to verify connection details (admin "Test connection").
+    Returns the Odoo uid; raises OdooError with a readable reason. Bounded
+    by `timeout` so a wrong URL can't hang the admin's request."""
+    url = url.strip().rstrip("/")
+    transport = _TimeoutSafeTransport(timeout) if url.lower().startswith("https://") else _TimeoutTransport(timeout)
+    try:
+        common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common", transport=transport)
+        uid = common.authenticate(db_name.strip(), username.strip(), password, {})
+    except xmlrpc.client.Fault as e:
+        raise OdooError(f"Odoo rejected the request: {e.faultString}") from e
+    except (OSError, xmlrpc.client.ProtocolError) as e:
+        raise OdooError(f"Could not reach Odoo at {url}: {e}") from e
+    if not uid:
+        raise OdooError("Odoo login failed: check the database name, username and password")
+    return uid
 
 
 async def get_client_odoo_connection(client_key: str) -> dict | None:
@@ -691,6 +782,10 @@ def get_payment_methods(client: OdooClient | None = None) -> list[dict]:
 
 def get_user_access_rights(name: str, client: OdooClient | None = None) -> dict:
     return _resolve(client).get_user_access_rights(name)
+
+
+def is_odoo_user(email: str, client: OdooClient | None = None) -> bool:
+    return _resolve(client).find_user_by_email(email) is not None
 
 
 def get_area_admins(user_email: str, client: OdooClient | None = None) -> dict:

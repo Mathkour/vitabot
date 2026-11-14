@@ -13,6 +13,7 @@ import { finalize, Subscription } from 'rxjs';
 import { AdminAssistantService } from '../../../core/services/admin-assistant.service';
 import { ChatService } from '../../../core/services/chat.service';
 import { LanguageService } from '../../../core/services/language.service';
+import { MicLevelMonitor } from '../../../shared/utils/mic-level';
 
 interface AdminChatMessage {
   id: string;
@@ -157,6 +158,7 @@ export class AdminAssistant implements OnDestroy {
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
       this.audioChunks = [];
       const recorder = new MediaRecorder(stream);
+      const micLevel = new MicLevelMonitor(stream);
       this.mediaRecorder = recorder;
 
       recorder.ondataavailable = (e) => {
@@ -165,6 +167,7 @@ export class AdminAssistant implements OnDestroy {
 
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
+        const heardSound = micLevel.stop();
         const mimeType = recorder.mimeType || 'audio/webm';
         this.mediaRecorder = null;
         const audioBlob = new Blob(this.audioChunks, { type: mimeType });
@@ -178,6 +181,13 @@ export class AdminAssistant implements OnDestroy {
 
         if (audioBlob.size === 0) {
           this.voiceStatus.set('idle');
+          return;
+        }
+        if (!heardSound) {
+          // Muted mic / wrong input device: say so, rather than uploading
+          // silence and showing the misleading "couldn't understand that".
+          this.voiceStatus.set('idle');
+          this.errorMessage.set(this.lang.translate('common.micNoSound'));
           return;
         }
         this.transcribeAudio(audioBlob);

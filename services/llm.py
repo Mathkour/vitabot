@@ -421,6 +421,55 @@ def select_relevant_slides(question:str,slides:list[dict], tenant_id: str | None
     return[s for s in slides if s["slide_number"] in chosen_numbers]
 
 
+def select_matching_video(question: str, videos: list[dict], tenant_id: str | None = None) -> dict | None:
+    """Picks the video whose admin-written title/description directly covers
+    the question, or None. Matches by meaning, so Arabic spelling variants,
+    dialect and English questions about Arabic-titled videos all work, which
+    plain keyword overlap missed. Only the admin's own text is compared, so
+    what gets attached stays under the admin's control. Raises on API
+    failure so the caller can fall back to keyword matching."""
+    if not videos:
+        return None
+    listing = "\n".join(
+        f"{i}. " + " / ".join(
+            dict.fromkeys(t.strip() for t in (v.get("display_name"), v.get("display_name_ar"),
+                                              v.get("description"), v.get("description_ar")) if t and t.strip())
+        )
+        for i, v in enumerate(videos, 1)
+    )
+    prompt = (
+        "You decide which training video, if any, to attach to a support chatbot's answer. "
+        "You are NOT answering the question.\n\n"
+        "Rules:\n"
+        "- Pick a video only if its title shows it directly covers the task or report the user "
+        "asks about (including when they explicitly ask for a video on it).\n"
+        "- Match by MEANING: the question may be in English or in any Arabic dialect, with "
+        "different spelling or word forms than the title.\n"
+        "- If a title covers several tasks (e.g. 'create, edit or archive a supplier'), it "
+        "matches a question about any one of them.\n"
+        "- Do not pick a video that is only loosely related (same module but a different task). "
+        "If none fits, answer NONE.\n\n"
+        f"User's question: {question}\n\n"
+        f"Videos:\n{listing}\n\n"
+        "Respond with ONLY the number of the single best video, or exactly NONE."
+    )
+    response = _log_call(
+        lambda: gemini_client.models.generate_content(
+            model=GEMINI_FLASH_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                max_output_tokens=10, temperature=0,
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+            ),
+        ),
+        endpoint="video_selection", model_used=GEMINI_FLASH_MODEL, summary=question, tenant_id=tenant_id,
+    )
+    raw = (response.text or "").strip().rstrip(".")
+    if raw.isdigit() and 1 <= int(raw) <= len(videos):
+        return videos[int(raw) - 1]
+    return None
+
+
 def translate_verbatim(text: str, target_language: str, tenant_id: str | None = None) -> str:
     """
     Faithful, literal translation — no summarizing, no rephrasing, no adding

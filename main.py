@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException,Depends, UploadFile,File,Form,Response,Header, Request
 from fastapi.responses import JSONResponse
+from fastapi.concurrency import run_in_threadpool
 from contextlib import asynccontextmanager
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -20,7 +21,7 @@ from services.import_users import parse_excel, detect_mapping
 from services.extraction import extract_text,extract_slides_from_pptx
 from services.chunking import chunck_text
 from services.embeddings import get_embedding
-from services.llm import generate_answer , translate_text , generate_admin_answer,generate_no_info_response,translate_to_english,select_relevant_slides,translate_verbatim
+from services.llm import generate_answer , translate_text , generate_admin_answer,generate_no_info_response,translate_to_english,select_relevant_slides,translate_verbatim,select_matching_video
 from services.search import search_chunk , search_media
 from services.company_slug import normalize_company_slug, slug_to_display_name
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,6 +46,7 @@ from routers.unanswered_questions import (
 )
 import time
 from services.migrations import apply_pending_migrations
+from services.faq_index import FAQ_INDEX_DOC_FILENAME, index_entry, delete_chunk, backfill_unindexed
 from services.activity import log_detached, label_for
 from loguru import logger
 import re
@@ -56,7 +58,11 @@ async def lifespan(app:FastAPI):
     await db.init_pool()
     # Applies migrations/*.sql not applied yet; never blocks startup.
     await apply_pending_migrations(db.pool)
+    # Indexes FAQ items / error solutions for chat in the background: it
+    # calls the embedding API per entry, so it mustn't delay startup.
+    backfill_task = asyncio.create_task(backfill_unindexed())
     yield
+    backfill_task.cancel()
     await db.close_pool()
 
 app=FastAPI(lifespan=lifespan)
@@ -1277,12 +1283,12 @@ async def upload_document(
 async def list_documents(tenant_id:str=Depends(get_current_tenant)):
     async with db.tenant_connection(tenant_id) as conn:
         rows = await conn.fetch(
-            # The Unanswered Questions answers document is managed from its
-            # own page; listing it here would let it be deleted (taking
-            # every learned answer with it) by accident.
+            # The Unanswered Questions answers and FAQ index documents are
+            # managed from their own pages; listing them here would let them
+            # be deleted (taking every learned answer with them) by accident.
             "SELECT id, filename, display_name, status, created_at FROM documents "
-            "WHERE tenant_id = $1 AND filename <> $2 ORDER BY created_at DESC",
-            tenant_id, ANSWERS_DOC_FILENAME,
+            "WHERE tenant_id = $1 AND filename <> ALL($2::text[]) ORDER BY created_at DESC",
+            tenant_id, [ANSWERS_DOC_FILENAME, FAQ_INDEX_DOC_FILENAME],
         )
         return [dict(r) for r in  rows]
 def _format_slide_range(slide_numbers:list[int])->str:
@@ -1458,6 +1464,14 @@ MEDIA_KEYWORD_STOPWORDS = {
     "هاد", "هاي", "هذا", "هذه", "ذلك", "تلك", "يلي", "الذي", "التي",
     "و", "او", "أو", "مع", "ال", "لا", "لأ", "نعم", "يا",
 }
+
+
+def _video_only_answer(media: dict, arabic: bool) -> str:
+    if arabic:
+        title = media.get("display_name_ar") or media.get("description_ar") or media.get("display_name") or media.get("description") or ""
+        return f"ما عندي خطوات مكتوبة لهذا، لكن هذا الفيديو يشرح الطريقة: {title}".strip()
+    title = media.get("display_name") or media.get("description") or media.get("display_name_ar") or ""
+    return f"I don't have written steps for this, but this video shows how: {title}".strip()
 
 
 def _extract_media_keywords(text: str | None) -> set[str]:
@@ -1816,10 +1830,11 @@ async def ask(
         # if media is None:
         #     media = await search_media(conn, question_embedding, tenant_id, body.category_id)
 
-        # Keyword matching: a video is attached only if the question shares
-        # at least MIN_KEYWORD_MATCHES meaningful words with that media
-        # item's own description (or display name) — fully deterministic and
-        # entirely under the admin's control via how they write that text.
+        # Which video to attach is decided by the model from the admin's own
+        # titles/descriptions (select_matching_video), matching by meaning so
+        # Arabic word forms, dialect and English questions work. Plain keyword
+        # overlap (below) missed most of those and is now only the fallback
+        # for when that call fails.
         if body.category_id:
             media_rows = await conn.fetch(
                 "SELECT id, filename, display_name, display_name_ar, media_type, description, description_ar, url, category_id "
@@ -1833,47 +1848,53 @@ async def ask(
                 tenant_id,
             )
 
-        # Match against both language versions of the question so an English
-        # question can still match an Arabic-only description and vice versa.
-        # translated_question (computed above for search) already gives the
-        # English form when the question is Arabic. When the question is
-        # already English, translate it into Arabic too — reusing
-        # translated_question there would just be the question again, since
-        # translate_to_english leaves English text unchanged. Skipped
-        # entirely for Arabic questions so they don't pay an extra API call.
-        arabic_question = (
-            None if _contains_arabic(body.question) else translate_verbatim(body.question, "Arabic", tenant_id=tenant_id)
-        )
+        try:
+            picked = select_matching_video(body.question, [dict(r) for r in media_rows], tenant_id=tenant_id)
+            if picked is not None:
+                media = picked
+        except Exception:
+            logger.exception("Video selection failed; falling back to keyword matching")
+            # Match against both language versions of the question so an English
+            # question can still match an Arabic-only description and vice versa.
+            # translated_question (computed above for search) already gives the
+            # English form when the question is Arabic. When the question is
+            # already English, translate it into Arabic too — reusing
+            # translated_question there would just be the question again, since
+            # translate_to_english leaves English text unchanged. Skipped
+            # entirely for Arabic questions so they don't pay an extra API call.
+            arabic_question = (
+                None if _contains_arabic(body.question) else translate_verbatim(body.question, "Arabic", tenant_id=tenant_id)
+            )
 
-        question_keywords = _extract_media_keywords(body.question) | _extract_media_keywords(translated_question)
-        if arabic_question:
-            question_keywords |= _extract_media_keywords(arabic_question)
+            question_keywords = _extract_media_keywords(body.question) | _extract_media_keywords(translated_question)
+            if arabic_question:
+                question_keywords |= _extract_media_keywords(arabic_question)
 
-        best_media_row = None
-        best_score = 0
-        best_ratio = -1.0
+            best_media_row = None
+            best_score = 0
+            best_ratio = -1.0
 
-        if question_keywords:
-            for row in media_rows:
-                searchable_text = " ".join(
-                    part for part in (row["description"], row["display_name"]) if part
-                )
-                description_keywords = _extract_media_keywords(searchable_text)
-                if not description_keywords:
-                    continue
+            if question_keywords:
+                for row in media_rows:
+                    searchable_text = " ".join(
+                        part for part in (row["description"], row["display_name"]) if part
+                    )
+                    description_keywords = _extract_media_keywords(searchable_text)
+                    if not description_keywords:
+                        continue
 
-                score = len(question_keywords & description_keywords)
-                if score < MIN_KEYWORD_MATCHES:
-                    continue
+                    score = len(question_keywords & description_keywords)
+                    if score < MIN_KEYWORD_MATCHES:
+                        continue
 
-                ratio = score / len(description_keywords)
-                if score > best_score or (score == best_score and ratio > best_ratio):
-                    best_media_row = row
-                    best_score = score
-                    best_ratio = ratio
+                    ratio = score / len(description_keywords)
+                    if score > best_score or (score == best_score and ratio > best_ratio):
+                        best_media_row = row
+                        best_score = score
+                        best_ratio = ratio
 
-        if best_media_row is not None:
-            media = dict(best_media_row)
+            if best_media_row is not None:
+                media = dict(best_media_row)
 
         media_hint = media["description"] if media else None
 
@@ -1908,8 +1929,13 @@ async def ask(
             # the model's own wording) so it logs the 'no_info_response' row
             # that Weak Answers analytics reads — see tenant_analytics.py.
             if answer.startswith("[[NO_INFO]]") or _looks_like_no_info(answer):
-                answer = generate_no_info_response(body.question, tenant_id=tenant_id)
-                offer_support = True
+                if media:
+                    # No written steps, but the attached video covers it:
+                    # point to it rather than saying "I don't know" above it.
+                    answer = _video_only_answer(media, _contains_arabic(body.question))
+                else:
+                    answer = generate_no_info_response(body.question, tenant_id=tenant_id)
+                    offer_support = True
         msg=await conn.fetchrow("INSERT INTO messages (tenant_id, conversation_id, role, content, created_at) VALUES ($1, $2, 'assistant', $3, clock_timestamp()) RETURNING id",
             tenant_id, conversation_id, answer,)
         message_id=str(msg["id"])
@@ -2131,10 +2157,11 @@ class CategoryRequest(BaseModel):
 @app.post("/transcribe")
 async def transcribe(
     file: UploadFile = File(...),
+    language: str | None = Form(None),
     tenant_id: str = Depends(get_current_tenant),
 ):
     audio_bytes = await file.read()
-    text = transcribe_audio(audio_bytes, file.filename)
+    text = transcribe_audio(audio_bytes, file.filename, language_hint=language)
     return {"text": text}
 
 @app.post("/categories")
@@ -2879,8 +2906,9 @@ async def create_faq_item(
             """,
             tenant_id, question, answer, question_ar, answer_ar, body.category_id,
         )
-        await log_detached(tenant_id, actor_id, 'faq.create', (body.question or body.question_ar or ''))
-        return dict(row)
+    await index_entry("faq_items", tenant_id, row["id"])
+    await log_detached(tenant_id, actor_id, 'faq.create', (body.question or body.question_ar or ''))
+    return dict(row)
 
 
 @app.put("/faq/{faq_id}")
@@ -2901,6 +2929,7 @@ async def update_faq_item(
         )
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="FAQ item not found")
+    await index_entry("faq_items", tenant_id, faq_id)
     await log_detached(tenant_id, actor_id, 'faq.update', (body.question or body.question_ar or ''))
     return {"status": "updated"}
 
@@ -2913,11 +2942,13 @@ async def delete_faq_item(
 ):
     _label = await label_for(tenant_id, "SELECT COALESCE(question, question_ar) FROM faq_items WHERE id = $1 AND tenant_id = $2", faq_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
-        result = await conn.execute(
-            "DELETE FROM faq_items WHERE id = $1 AND tenant_id = $2",
+        deleted = await conn.fetchrow(
+            "DELETE FROM faq_items WHERE id = $1 AND tenant_id = $2 RETURNING chunk_id",
             faq_id, tenant_id,
         )
-    if result == "DELETE 0":
+        if deleted is not None:
+            await delete_chunk(conn, tenant_id, deleted["chunk_id"])
+    if deleted is None:
         raise HTTPException(status_code=404, detail="FAQ item not found")
     await log_detached(tenant_id, actor_id, 'faq.delete', _label)
     return {"status": "deleted"}
@@ -2951,8 +2982,9 @@ async def create_error_solution(
             """,
             tenant_id, body.error_text, body.solution_text, error_text_ar, solution_text_ar, body.category_id,
         )
-        await log_detached(tenant_id, actor_id, 'error_solution.create', body.error_text)
-        return dict(row)
+    await index_entry("error_solutions", tenant_id, row["id"])
+    await log_detached(tenant_id, actor_id, 'error_solution.create', body.error_text)
+    return dict(row)
 
 
 @app.put("/error-solutions/{error_solution_id}")
@@ -2972,6 +3004,7 @@ async def update_error_solution(
         )
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="Error solution not found")
+    await index_entry("error_solutions", tenant_id, error_solution_id)
     await log_detached(tenant_id, actor_id, 'error_solution.update', body.error_text)
     return {"status": "updated"}
 
@@ -2984,11 +3017,13 @@ async def delete_error_solution(
 ):
     _label = await label_for(tenant_id, "SELECT error_text FROM error_solutions WHERE id = $1 AND tenant_id = $2", error_solution_id, tenant_id)
     async with db.tenant_connection(tenant_id) as conn:
-        result = await conn.execute(
-            "DELETE FROM error_solutions WHERE id = $1 AND tenant_id = $2",
+        deleted = await conn.fetchrow(
+            "DELETE FROM error_solutions WHERE id = $1 AND tenant_id = $2 RETURNING chunk_id",
             error_solution_id, tenant_id,
         )
-    if result == "DELETE 0":
+        if deleted is not None:
+            await delete_chunk(conn, tenant_id, deleted["chunk_id"])
+    if deleted is None:
         raise HTTPException(status_code=404, detail="Error solution not found")
     await log_detached(tenant_id, actor_id, 'error_solution.delete', _label)
     return {"status": "deleted"}
@@ -3010,7 +3045,7 @@ async def import_error_solutions_excel(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    created = 0
+    created_ids = []
     skipped = 0
 
     async with db.tenant_connection(tenant_id) as conn:
@@ -3023,20 +3058,21 @@ async def import_error_solutions_excel(
                     skipped += 1
                     continue
 
-                await conn.execute(
-                    "INSERT INTO error_solutions (tenant_id, error_text, solution_text) VALUES ($1, $2, $3)",
+                created_ids.append(await conn.fetchval(
+                    "INSERT INTO error_solutions (tenant_id, error_text, solution_text) VALUES ($1, $2, $3) RETURNING id",
                     tenant_id, error_text, solution_text,
-                )
-                created += 1
+                ))
             except Exception:
                 skipped += 1
 
-        await log_detached(tenant_id, actor_id, 'error_solution.import', file.filename)
-        return {
-            "status": "done",
-            "created": created,
-            "skipped": skipped,
-        }
+    for entry_id in created_ids:
+        await index_entry("error_solutions", tenant_id, entry_id)
+    await log_detached(tenant_id, actor_id, 'error_solution.import', file.filename)
+    return {
+        "status": "done",
+        "created": len(created_ids),
+        "skipped": skipped,
+    }
 
 
 @app.get("/faq/combined")
@@ -3092,37 +3128,88 @@ async def list_videos(tenant_id: str = Depends(require_vita_care_tenant)):
 
 
 ODOO_NOT_CONFIGURED_FOR_COMPANY = "Ask Odoo isn't set up for your company yet"
+ODOO_DISABLED_FOR_COMPANY = "Ask Odoo is turned off for your company"
+NOT_AN_ODOO_USER = "Your email isn't registered as a user in Odoo, so Ask Odoo can't answer for you"
+ODOO_USER_CHECK_FAILED = "Ask Odoo couldn't connect to your company's Odoo. Please ask your administrator to check the Odoo connection"
 
 
 async def _resolve_odoo_access(tenant_id: str, user_id: str) -> tuple[str, dict | None]:
     """Decides which Odoo (if any) this user's Odoo data comes from:
 
-      - ("company", connection): signed in through a client's Odoo SSO
-        (odoo_client_key) that has a connection on file -> that client's
-        own Odoo, never Vita Care's.
+      - ("company", connection): a company user whose company has Ask Odoo
+        enabled (admin portal, Companies page) -> the company's own Odoo
+        connection, or failing that the client connection the user signed
+        in through via Odoo SSO (odoo_client_key). Never Vita Care's.
+      - ("company", connection): no company but a client key with a
+        connection on file (an SSO user whose company was lost).
       - ("vita_care", None): no company and no client key, i.e. Vita Care's
         own staff -> Vita Care's own Odoo (the env default).
 
     Anyone else is refused with 403 rather than falling back to Vita
-    Care's Odoo: a company user without a client connection, or a client
-    key with no connection on file. That fallback used to hand Vita Care's
-    internal sales/customer data to any company user who happened to lack
-    a client key (e.g. a company sign-up, or an SSO with no client_key)."""
+    Care's Odoo: a company with Ask Odoo turned off or not configured, or a
+    client key with no connection on file. That fallback used to hand Vita
+    Care's internal sales/customer data to any company user who happened
+    to lack a client key (e.g. a company sign-up, or an SSO with no
+    client_key)."""
     async with db.tenant_connection(tenant_id) as conn:
         user = await conn.fetchrow(
-            "SELECT company_id, odoo_client_key FROM users WHERE id = $1 AND tenant_id = $2",
+            """
+            SELECT u.email, u.company_id, u.odoo_client_key, c.ask_odoo_enabled, c.odoo_connection_id
+            FROM users u
+            LEFT JOIN companies c ON c.id = u.company_id AND c.tenant_id = u.tenant_id
+            WHERE u.id = $1 AND u.tenant_id = $2
+            """,
             user_id, tenant_id,
         )
     if user is None:
         raise HTTPException(status_code=403, detail="Ask Odoo is not available for this account")
-    if user["odoo_client_key"]:
-        connection = await odoo_service.get_client_odoo_connection(user["odoo_client_key"])
-        if connection:
-            return "company", connection
-        raise HTTPException(status_code=403, detail=ODOO_NOT_CONFIGURED_FOR_COMPANY)
     if user["company_id"]:
-        raise HTTPException(status_code=403, detail=ODOO_NOT_CONFIGURED_FOR_COMPANY)
-    return "vita_care", None
+        if not user["ask_odoo_enabled"]:
+            raise HTTPException(status_code=403, detail=ODOO_DISABLED_FOR_COMPANY)
+        connection = None
+        if user["odoo_connection_id"]:
+            connection = await odoo_service.get_odoo_connection_by_id(user["odoo_connection_id"])
+        if connection is None and user["odoo_client_key"]:
+            connection = await odoo_service.get_client_odoo_connection(user["odoo_client_key"])
+        if not connection:
+            raise HTTPException(status_code=403, detail=ODOO_NOT_CONFIGURED_FOR_COMPANY)
+        source = "company"
+    elif user["odoo_client_key"]:
+        connection = await odoo_service.get_client_odoo_connection(user["odoo_client_key"])
+        if not connection:
+            raise HTTPException(status_code=403, detail=ODOO_NOT_CONFIGURED_FOR_COMPANY)
+        source = "company"
+    else:
+        source, connection = "vita_care", None
+    await _require_odoo_user(user_id, user["email"], connection)
+    return source, connection
+
+
+# Ask Odoo only answers people who are themselves users of that Odoo (an
+# active res.users whose login/email is exactly their email): anyone else
+# gets nothing from it. Cached briefly because the frontend checks
+# /odoo/access several times per page load; a removed Odoo user loses
+# access within this many seconds.
+ODOO_USER_CHECK_TTL_SECONDS = 300
+_odoo_user_check_cache: dict[tuple, tuple[float, bool]] = {}
+
+
+async def _require_odoo_user(user_id: str, email: str | None, connection: dict | None) -> None:
+    odoo_key = (connection["url"].rstrip("/"), connection["db"]) if connection else ("vita_care",)
+    cache_key = (user_id, (email or "").lower(), odoo_key)
+    cached = _odoo_user_check_cache.get(cache_key)
+    if cached and time.monotonic() - cached[0] < ODOO_USER_CHECK_TTL_SECONDS:
+        is_user = cached[1]
+    else:
+        client = odoo_service.OdooClient(**connection) if connection else None
+        try:
+            is_user = bool(email) and await run_in_threadpool(odoo_service.is_odoo_user, email, client)
+        except odoo_service.OdooError as e:
+            logger.warning(f"Ask Odoo user check failed: {e}")
+            raise HTTPException(status_code=503, detail=ODOO_USER_CHECK_FAILED)
+        _odoo_user_check_cache[cache_key] = (time.monotonic(), is_user)
+    if not is_user:
+        raise HTTPException(status_code=403, detail=NOT_AN_ODOO_USER)
 
 
 @app.get("/odoo/access")

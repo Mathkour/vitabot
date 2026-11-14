@@ -19,7 +19,7 @@
           [class.aa__bubble--user]="message.role === 'user'"
           [class.aa__bubble--bot]="message.role === 'bot'"
         >
-          <p class="aa__bubble-text">{{ message.text }}</p>
+          <p class="aa__bubble-text" dir="auto">{{ message.text }}</p>
 
           @if (message.role === 'bot') {
             <button

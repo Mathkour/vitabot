@@ -55,6 +55,7 @@ def test_real_answer_is_not_flagged(answer):
 class FakeConn:
     def __init__(self):
         self.assistant_messages = []
+        self.media = []
 
     async def fetchrow(self, sql, *args):
         if sql.startswith("SELECT id FROM bots"):
@@ -67,7 +68,9 @@ class FakeConn:
         raise AssertionError(f"unexpected fetchrow: {sql}")
 
     async def fetch(self, sql, *args):
-        if "FROM messages" in sql or "FROM media" in sql:
+        if "FROM media" in sql:
+            return self.media
+        if "FROM messages" in sql:
             return []
         raise AssertionError(f"unexpected fetch: {sql}")
 
@@ -140,6 +143,62 @@ def test_ask_real_answer_is_untouched(ask_env):
     assert body["answer"] == real
     assert body["offer_support"] is False
     assert calls["no_info"] == 0
+
+
+VIDEO = {
+    "id": "99999999-9999-9999-9999-999999999999", "filename": None, "media_type": "link",
+    "display_name": None, "display_name_ar": None, "category_id": None,
+    "description": "كيفية تفعيل نقاط الولاء للعملاء", "description_ar": "كيفية تفعيل نقاط الولاء للعملاء",
+    "url": "https://www.youtube.com/watch?v=abc",
+}
+
+
+@pytest.mark.parametrize("question,expected_start", [
+    ("كيف افعل نقاط الولاء؟", "ما عندي خطوات مكتوبة"),
+    ("How do I activate loyalty points?", "I don't have written steps"),
+])
+def test_ask_video_without_written_steps_points_to_video(ask_env, question, expected_start):
+    """A matching video but no written answer: point to the video instead of
+    saying "I don't know" right above it, and don't log it as unanswered."""
+    client, conn, calls, monkeypatch = ask_env
+    conn.media = [VIDEO]
+    monkeypatch.setattr(main, "select_matching_video", lambda q, videos, tenant_id=None: videos[0])
+    monkeypatch.setattr(main, "generate_answer", lambda *a, **k: "[[NO_INFO]] nothing written")
+
+    body = client.post("/ask", json={"question": question}).json()
+
+    assert body["answer"].startswith(expected_start)
+    assert "نقاط الولاء" in body["answer"]
+    assert body["media"]["url"] == VIDEO["url"]
+    assert body["offer_support"] is False
+    assert calls["no_info"] == 0
+
+
+def test_ask_video_selection_failure_falls_back_to_keywords(ask_env):
+    client, conn, calls, monkeypatch = ask_env
+    conn.media = [VIDEO]
+
+    def boom(*_a, **_k):
+        raise RuntimeError("gemini down")
+
+    monkeypatch.setattr(main, "select_matching_video", boom)
+    monkeypatch.setattr(main, "generate_answer", lambda *a, **k: "Open Loyalty and enable it.")
+
+    body = client.post("/ask", json={"question": "تفعيل نقاط الولاء للعملاء"}).json()
+
+    assert body["media"]["url"] == VIDEO["url"]
+    assert body["answer"] == "Open Loyalty and enable it."
+
+
+def test_ask_no_matching_video_attaches_nothing(ask_env):
+    client, conn, calls, monkeypatch = ask_env
+    conn.media = [VIDEO]
+    monkeypatch.setattr(main, "select_matching_video", lambda *a, **k: None)
+    monkeypatch.setattr(main, "generate_answer", lambda *a, **k: "Open the Claims page.")
+
+    body = client.post("/ask", json={"question": "How do I submit a claim?"}).json()
+
+    assert body["media"] is None
 
 
 # --- generate_answer phantom-attachment rule ----------------------------------

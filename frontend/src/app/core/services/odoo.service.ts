@@ -1,12 +1,15 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { LanguageService } from './language.service';
 import { skipLoadingIndicator } from '../interceptors/loading-indicator.interceptor';
 import { OdooAskResponse, OdooHistoryMessage } from '../models/odoo.models';
 
 @Injectable({ providedIn: 'root' })
 export class OdooService {
+  private readonly lang = inject(LanguageService);
+
   constructor(private readonly http: HttpClient) {}
 
   ask(question: string, history: OdooHistoryMessage[] = []): Observable<OdooAskResponse> {
@@ -23,6 +26,8 @@ export class OdooService {
   transcribe(audioBlob: Blob): Observable<{ text: string }> {
     const formData = new FormData();
     formData.append('file', audioBlob, 'audio.webm');
+    // A hint so Arabic speech is transcribed as Arabic, never translated.
+    formData.append('language', this.lang.lang());
     return this.http.post<{ text: string }>(
       `${environment.apiBaseUrl}/transcribe`,
       formData,

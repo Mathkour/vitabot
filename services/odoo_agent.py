@@ -1,11 +1,26 @@
 import json
 import time
+from datetime import datetime, timedelta, timezone
 from functools import partial
 
 from core.ai_client import anthropic_client, SONNET_MODEL
 from services import odoo_service
 from services.ai_monitoring import log_ai_prediction
 from services.odoo_service import OdooClient
+
+# Vita Care and its client pharmacies work on Saudi time (UTC+3, no DST);
+# "today" / "this month" in a question means their local day.
+BUSINESS_TZ = timezone(timedelta(hours=3))
+
+
+def _date_context(now: datetime | None = None) -> str:
+    now = (now or datetime.now(BUSINESS_TZ)).astimezone(BUSINESS_TZ)
+    return (
+        f"\n\nTODAY: {now:%A, %Y-%m-%d} (local time {now:%H:%M}, UTC+3). Resolve relative dates "
+        "('today', 'yesterday', 'this week', 'last month', 'this year', 'من أول السنة') from this "
+        "date into explicit YYYY-MM-DD date_from/date_to values for the tools; never say you "
+        "don't know the current date."
+    )
 
 
 system_prompt = """You are an assistant that answers questions about a company's Odoo data
@@ -120,7 +135,10 @@ TOOL SELECTION RULES (follow these exactly — picking the wrong tool gives WRON
   DO have and note that exact permission granularity isn't always visible from group names alone
   — but always give a substantive, helpful answer rather than a flat refusal or apology.
 
-USER NAME MATCHING RULE: If get_user_access_rights returns found=false, it will include
+USER NAME MATCHING RULE: This rule is ONLY for lookups by a person's NAME. A lookup by email
+(always the case for the current user's own identity) is exact: if it returns found=false,
+say plainly that no Odoo user is registered with that email and stop; never suggest, guess or
+show the access rights of a different user. If a NAME lookup returns found=false, it will include
 all_system_usernames (the full real list of usernames in the system). The searched name may
 have been given in a different language or script than how it's stored (e.g. an Arabic
 phonetic spelling of an English name like "سبورت تيم" for "support team", or vice versa) —
@@ -491,7 +509,7 @@ def odoo_agent_ask(
             + "\n---\n".join(kb_context)
         )
 
-    full_system_prompt = system_prompt + summary_context + identity_context + kb_context_text
+    full_system_prompt = system_prompt + _date_context() + summary_context + identity_context + kb_context_text
 
     messages = []
     if history:

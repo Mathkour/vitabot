@@ -99,7 +99,7 @@
           [class.vita-insights__bubble--user]="message.role === 'user'"
           [class.vita-insights__bubble--assistant]="message.role === 'assistant'"
         >
-          <p class="vita-insights__bubble-text">{{ message.text }}</p>
+          <p class="vita-insights__bubble-text" dir="auto">{{ message.text }}</p>
 
           @if (message.role === 'assistant' && message.chart) {
             <app-simple-chart [data]="message.chart" />
