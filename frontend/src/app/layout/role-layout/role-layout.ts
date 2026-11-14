@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { Sidebar } from '../sidebar/sidebar';
+import { BrandFooter } from '../../shared/brand-footer/brand-footer';
 import { Topbar } from '../topbar/topbar';
 
 /**
@@ -23,7 +24,7 @@ import { Topbar } from '../topbar/topbar';
  */
 @Component({
   selector: 'app-role-layout',
-  imports: [RouterOutlet, Sidebar, Topbar],
+  imports: [RouterOutlet, Sidebar, Topbar, BrandFooter],
   templateUrl: './role-layout.html',
   styleUrl: './role-layout.scss',
 })

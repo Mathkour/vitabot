@@ -1,5 +1,6 @@
 .auth {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
@@ -58,11 +59,27 @@
   }
 }
 
-.auth__title {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 24px;
+.auth__product {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
   text-align: center;
+  color: var(--color-text);
+}
+
+.auth__tagline {
+  margin: 6px 0 20px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.auth__title {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+  color: var(--color-text-secondary);
 }
 
 .auth__form {

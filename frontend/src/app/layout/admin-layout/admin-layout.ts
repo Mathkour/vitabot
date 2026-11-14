@@ -1,11 +1,12 @@
 import { Component, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Sidebar } from '../sidebar/sidebar';
+import { BrandFooter } from '../../shared/brand-footer/brand-footer';
 import { Topbar } from '../topbar/topbar';
 
 @Component({
   selector: 'app-admin-layout',
-  imports: [RouterOutlet, Sidebar, Topbar],
+  imports: [RouterOutlet, Sidebar, Topbar, BrandFooter],
   templateUrl: './admin-layout.html',
   styleUrl: './admin-layout.scss',
 })

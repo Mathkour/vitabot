@@ -12,6 +12,8 @@
     </div>
 
     <div class="auth__card card">
+      <h1 class="auth__product">Vita Bot</h1>
+      <p class="auth__tagline">{{ lang.translate('auth.productTagline') }}</p>
       <h2 class="auth__title">{{ lang.translate('auth.signIn') }}</h2>
 
       @if (errorMessage()) {
@@ -63,4 +65,6 @@
       </form>
     </div>
   </section>
+
+  <app-brand-footer />
 </div>

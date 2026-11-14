@@ -5,11 +5,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { ThemeService } from '../../../core/services/theme.service';
+import { BrandFooter } from '../../../shared/brand-footer/brand-footer';
 import { PasswordToggleDirective } from '../../../shared/directives/password-toggle.directive';
 
 @Component({
   selector: 'app-auth-page',
-  imports: [ReactiveFormsModule, PasswordToggleDirective],
+  imports: [ReactiveFormsModule, PasswordToggleDirective, BrandFooter],
   templateUrl: './auth-page.html',
   styleUrl: './auth-page.scss',
 })

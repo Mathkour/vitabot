@@ -244,8 +244,13 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'common.transcriptionFailed': 'Transcription failed. Please try again.',
     'common.voiceNotUnderstood': "Sorry, I couldn't understand that, please try again.",
 
+    // Footer / department brand
+    'footer.productOf': 'a product of',
+    'footer.department': 'Data Analytics & Operations',
+
     // Auth
     'auth.signIn': 'Sign in',
+    'auth.productTagline': 'Your AI assistant for answers, guides and support',
     'auth.email': 'Email',
     'auth.password': 'Password',
     'auth.signInCta': 'Sign in',
@@ -1006,8 +1011,13 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'common.transcriptionFailed': 'فشل تحويل الصوت إلى نص. يرجى المحاولة مرة أخرى.',
     'common.voiceNotUnderstood': 'عذراً، ما قدرت أفهم الصوت، جرب تاني.',
 
+    // Footer / department brand
+    'footer.productOf': 'من منتجات',
+    'footer.department': 'تحليلات وعمليات البيانات',
+
     // Auth
     'auth.signIn': 'تسجيل الدخول',
+    'auth.productTagline': 'مساعدك الذكي للإجابات والأدلة والدعم',
     'auth.email': 'البريد الإلكتروني',
     'auth.password': 'كلمة المرور',
     'auth.signInCta': 'تسجيل الدخول',
