@@ -2179,7 +2179,6 @@ async def get_media_file(
 
 class SpeakRequest(BaseModel):
     text: str
-    voice: str = "zephyr"
 
 
 @app.post("/speak")
@@ -2191,7 +2190,7 @@ async def speak(
     # container (see services/tts.py) — was audio/mpeg back when this was MP3
     # from OpenAI's TTS.
     try:
-        audio_bytes = synthesize_speech(body.text, body.voice)
+        audio_bytes = synthesize_speech(body.text)
     except TTSGenerationFailed as e:
         # synthesize_speech already retried 5x — this is a real, if rare,
         # exhaustion (short/question-shaped text), not a transient blip.

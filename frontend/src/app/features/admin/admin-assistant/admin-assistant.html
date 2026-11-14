@@ -105,18 +105,6 @@
         [disabled]="isLoading()"
       ></textarea>
 
-      <select
-        class="aa__voice-select"
-        title="TTS voice"
-        name="ttsVoice"
-        [ngModel]="ttsVoice()"
-        (ngModelChange)="ttsVoice.set($event)"
-      >
-        @for (v of ttsVoices; track v) {
-          <option [value]="v">{{ v }}</option>
-        }
-      </select>
-
       <button
         type="button"
         class="aa__mic-btn"

@@ -9,18 +9,20 @@ from google.genai.errors import ClientError
 
 from core.ai_client import gemini_client, GEMINI_TTS_MODEL, GEMINI_TRANSCRIBE_MODEL
 
-# Gemini's prebuilt TTS voices (see https://ai.google.dev/gemini-api/docs/speech-generation).
-# Mirrors the old OpenAI voice slots 1:1 so the frontend keeps a 6-item picker;
-# any of Gemini's ~30 prebuilt voices could be swapped in here.
-VOICE_NAMES = {
-    "zephyr": "Zephyr",  # bright
-    "puck": "Puck",  # upbeat
-    "kore": "Kore",  # firm
-    "charon": "Charon",  # informative
-    "leda": "Leda",  # youthful
-    "fenrir": "Fenrir",  # excitable
-}
-DEFAULT_VOICE = "zephyr"
+# One fixed voice for the whole app (users don't pick one): Gemini's "warm"
+# female prebuilt voice (see https://ai.google.dev/gemini-api/docs/speech-generation).
+VOICE_NAME = "Sulafat"
+
+# Gemini TTS voices are language-agnostic; the accent is steered by a
+# natural-language instruction ahead of the text. The instruction itself is
+# not spoken (verified by transcribing the output). Arabic gets a Saudi
+# accent; English just the same warm delivery.
+_STYLE_ARABIC = (
+    "Read the following text aloud in a warm, friendly, natural female voice "
+    "with a Saudi Arabic accent, at a calm pace:"
+)
+_STYLE_ENGLISH = "Read the following text aloud in a warm, friendly, natural female voice, at a calm pace:"
+_ARABIC_CHAR_RE = re.compile(r"[؀-ۿ]")
 
 _PCM_MIME_RE = re.compile(r"^audio/L(?P<bits>\d+);codec=pcm;rate=(?P<rate>\d+)$")
 
@@ -83,13 +85,12 @@ def _extract_audio_part(response) -> types.Part:
     return parts[0]
 
 
-def synthesize_speech(text: str, voice: str = DEFAULT_VOICE, max_retries: int = 5) -> bytes:
-    voice_name = VOICE_NAMES.get(voice.lower(), VOICE_NAMES[DEFAULT_VOICE])
+def synthesize_speech(text: str, max_retries: int = 5) -> bytes:
     config = types.GenerateContentConfig(
         response_modalities=["AUDIO"],
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(
-                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=VOICE_NAME)
             )
         ),
     )
@@ -103,8 +104,10 @@ def synthesize_speech(text: str, voice: str = DEFAULT_VOICE, max_retries: int = 
     # this preview model (it 500s), so the prefix has to ride inside
     # `contents` instead. The prefix reduces, but does not eliminate, the
     # failure (~1 in 4-5 calls for question-shaped text, observed live) —
-    # see the retry loop below, which is the real mitigation.
-    contents = f"TTS the following:\n{text}"
+    # see the retry loop below, which is the real mitigation. The style
+    # instruction doubles as that prefix.
+    style = _STYLE_ARABIC if _ARABIC_CHAR_RE.search(text) else _STYLE_ENGLISH
+    contents = f"{style}\n{text}"
 
     last_error = None
     for attempt in range(max_retries):
@@ -157,7 +160,7 @@ def get_fallback_audio() -> bytes:
     with _fallback_lock:
         if _fallback_audio_cache is None:  # re-check: lost the race while waiting for the lock
             try:
-                _fallback_audio_cache = synthesize_speech(FALLBACK_TEXT, DEFAULT_VOICE)
+                _fallback_audio_cache = synthesize_speech(FALLBACK_TEXT)
             except TTSGenerationFailed:
                 # Don't cache this — a transient Gemini outage shouldn't
                 # permanently downgrade every future request to silence.

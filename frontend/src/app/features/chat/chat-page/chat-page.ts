@@ -26,7 +26,6 @@ import { SuggestedQuestionsService } from '../../../core/services/suggested-ques
 import { SupportTicketsService } from '../../../core/services/support-tickets.service';
 import { DisplayNamePipe } from '../../../shared/pipes/display-name.pipe';
 import { extractYoutubeId } from '../../../shared/utils/youtube';
-import { TtsVoice } from '../../../shared/voice-select/voice-select';
 import { MicLevelMonitor } from '../../../shared/utils/mic-level';
 
 type VoiceStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -74,9 +73,6 @@ export class ChatPage implements OnInit, OnDestroy {
   readonly supportTicketSubmitted = signal(false);
   readonly supportTicketError = signal<string | null>(null);
   readonly voiceStatus = signal<VoiceStatus>('idle');
-  // Fixed — the voice picker UI was removed per request so the user never
-  // sees or chooses which voice is speaking.
-  readonly ttsVoice: TtsVoice = 'zephyr';
   readonly recordingSeconds = signal(0);
 
   readonly recordingTime = computed(() => {
@@ -529,7 +525,7 @@ export class ChatPage implements OnInit, OnDestroy {
     this.voiceStatus.set('speaking');
     const langCode = this.detectTtsLanguage(text);
 
-    this.speakSubscription = this.chatService.speak(text, langCode, this.ttsVoice).subscribe({
+    this.speakSubscription = this.chatService.speak(text, langCode).subscribe({
       next: (blob) => {
         this.speakSubscription = null;
         const objectUrl = URL.createObjectURL(blob);

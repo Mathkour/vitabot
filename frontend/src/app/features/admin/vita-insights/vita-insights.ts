@@ -17,7 +17,6 @@ import { LanguageService } from '../../../core/services/language.service';
 import { OdooService } from '../../../core/services/odoo.service';
 import { OdooSuggestedQuestionsService } from '../../../core/services/odoo-suggested-questions.service';
 import { SimpleChart, SimpleChartData } from '../../../shared/simple-chart/simple-chart';
-import { TtsVoice, VoiceSelect } from '../../../shared/voice-select/voice-select';
 import { MicLevelMonitor } from '../../../shared/utils/mic-level';
 
 type VoiceStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -44,7 +43,7 @@ function toSimpleChartData(chart: OdooChartData): SimpleChartData {
 
 @Component({
   selector: 'app-vita-insights',
-  imports: [FormsModule, VoiceSelect, SimpleChart],
+  imports: [FormsModule, SimpleChart],
   templateUrl: './vita-insights.html',
   styleUrl: './vita-insights.scss',
 })
@@ -71,7 +70,6 @@ export class VitaInsights implements OnInit, OnDestroy {
   readonly isLoading = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly voiceStatus = signal<VoiceStatus>('idle');
-  readonly ttsVoice = signal<TtsVoice>('zephyr');
   readonly recordingSeconds = signal(0);
 
   readonly suggestedQuestions = signal<OdooSuggestedQuestion[]>([]);
@@ -447,7 +445,7 @@ export class VitaInsights implements OnInit, OnDestroy {
     this.voiceStatus.set('speaking');
     const langCode = this.detectTtsLanguage(text);
 
-    this.speakSubscription = this.odooService.speak(text, langCode, this.ttsVoice()).subscribe({
+    this.speakSubscription = this.odooService.speak(text, langCode).subscribe({
       next: (blob) => {
         this.speakSubscription = null;
         const objectUrl = URL.createObjectURL(blob);

@@ -34,10 +34,10 @@ export class OdooService {
     );
   }
 
-  speak(text: string, languageCode: string, voice: string): Observable<Blob> {
+  speak(text: string, languageCode: string): Observable<Blob> {
     return this.http.post(
       `${environment.apiBaseUrl}/speak`,
-      { text, language_code: languageCode, voice },
+      { text, language_code: languageCode },
       { responseType: 'blob' },
     );
   }

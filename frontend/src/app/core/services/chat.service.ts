@@ -48,14 +48,14 @@ export class ChatService {
     );
   }
 
-  speak(text: string, languageCode: string, voice: string): Observable<Blob> {
+  speak(text: string, languageCode: string): Observable<Blob> {
     // Fires right after the bot's text answer has already rendered (voice
     // questions auto-play the reply) — same reasoning as fetchMedia() above:
     // the answer is already visible, so the global overlay must not flash
     // on top of it while the TTS audio loads.
     return this.http.post(
       `${environment.apiBaseUrl}/speak`,
-      { text, language_code: languageCode, voice },
+      { text, language_code: languageCode },
       { responseType: 'blob', context: skipLoadingIndicator() },
     );
   }

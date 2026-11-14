@@ -23,10 +23,6 @@ interface AdminChatMessage {
 }
 
 type VoiceStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
-// Gemini prebuilt TTS voice names (lowercase to match services/tts.py's VOICE_NAMES keys).
-type TtsVoice = 'zephyr' | 'puck' | 'kore' | 'charon' | 'leda' | 'fenrir';
-
-const TTS_VOICES: TtsVoice[] = ['zephyr', 'puck', 'kore', 'charon', 'leda', 'fenrir'];
 
 @Component({
   selector: 'app-admin-assistant',
@@ -54,8 +50,6 @@ export class AdminAssistant implements OnDestroy {
   readonly isLoading = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly voiceStatus = signal<VoiceStatus>('idle');
-  readonly ttsVoice = signal<TtsVoice>('zephyr');
-  readonly ttsVoices = TTS_VOICES;
   readonly recordingSeconds = signal(0);
 
   readonly recordingTime = computed(() => {
@@ -259,7 +253,7 @@ export class AdminAssistant implements OnDestroy {
     this.voiceStatus.set('speaking');
     const langCode = this.detectTtsLanguage(message.text);
 
-    this.speakSubscription = this.chatService.speak(message.text, langCode, this.ttsVoice()).subscribe({
+    this.speakSubscription = this.chatService.speak(message.text, langCode).subscribe({
       next: (blob) => {
         this.speakSubscription = null;
         const objectUrl = URL.createObjectURL(blob);
