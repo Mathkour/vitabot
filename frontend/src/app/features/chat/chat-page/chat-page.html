@@ -1,71 +1,120 @@
 <div class="chat">
   <div class="chat__header">
     <div class="chat__header-text">
-      <h2>{{ lang.translate('chat.title') }}</h2>
-      <p class="chat__subtext">{{ lang.translate('chat.subtitle') }}</p>
-    </div>
-    <button type="button" class="chat__history-btn" (click)="openHistory()">
-      <span class="material-symbols-outlined">history</span>
-      {{ lang.translate('chat.history') }}
-    </button>
-  </div>
-
-  @if (categories().length > 0 && showEmptyState()) {
-    <div class="chat__categories">
-      <button
-        type="button"
-        class="chat__category-pill"
-        [class.chat__category-pill--active]="!selectedCategory()"
-        (click)="selectCategory(null)"
-      >
-        <span class="material-symbols-outlined">apps</span>
-        {{ lang.translate('chat.allTopics') }}
-      </button>
-
-      @for (cat of categories(); track cat.id) {
-        <button
-          type="button"
-          class="chat__category-pill"
-          [class.chat__category-pill--active]="selectedCategoryId() === cat.id"
-          (click)="selectCategory(cat)"
-        >
-          {{ cat.name }}
-        </button>
+      @if (!showEmptyState()) {
+        <h2>{{ lang.translate('chat.title') }}</h2>
+        <p class="chat__subtext">{{ lang.translate('chat.subtitle') }}</p>
       }
     </div>
-  }
+    <div class="chat__header-actions">
+      @if (!showEmptyState()) {
+        <button
+          type="button"
+          class="chat__history-btn"
+          [disabled]="isLoading()"
+          [title]="lang.translate('chat.newChat')"
+          [attr.aria-label]="lang.translate('chat.newChat')"
+          (click)="startNewChat()"
+        >
+          <span class="material-symbols-outlined">add_comment</span>
+          <span class="chat__history-label">{{ lang.translate('chat.newChat') }}</span>
+        </button>
+      }
+      <button
+        type="button"
+        class="chat__history-btn"
+        [title]="lang.translate('chat.history')"
+        [attr.aria-label]="lang.translate('chat.history')"
+        (click)="openHistory()"
+      >
+        <span class="material-symbols-outlined">history</span>
+        <span class="chat__history-label">{{ lang.translate('chat.history') }}</span>
+      </button>
+    </div>
+  </div>
 
   <div class="chat__messages" #scrollContainer>
     @if (showEmptyState()) {
-      <div class="chat__empty">
-        <span class="material-symbols-outlined chat__empty-icon">forum</span>
-        <p>
-          {{ selectedCategory()
-            ? lang.translate('chat.emptyPromptScoped') + ' ' + selectedCategory()!.name + '.'
-            : lang.translate('chat.emptyPrompt') }}
-        </p>
+      <section class="welcome">
+        <div class="welcome__intro">
+          <div class="welcome__badge">
+            <span class="material-symbols-outlined">smart_toy</span>
+          </div>
+          <div class="welcome__intro-text">
+            @if (greetingName()) {
+              <p class="welcome__greeting">{{ lang.translate('chat.welcomeGreeting') }} <strong dir="auto">{{ greetingName() }}</strong></p>
+            }
+            <h2 class="welcome__title">{{ lang.translate('chat.welcomeTitle') }}</h2>
+          </div>
+        </div>
+        <p class="welcome__lead">{{ lang.translate('chat.welcomeText') }}</p>
 
-        @if (selectedCategory()) {
-          <div class="chat__suggestions">
-            @if (suggestedQuestionsLoading()) {
-              <p class="chat__suggestions-status">{{ lang.translate('chat.loadingQuestions') }}</p>
-            } @else if (suggestedQuestionsError()) {
-              <p class="error-text">{{ suggestedQuestionsError() }}</p>
-            } @else if (suggestedQuestions().length === 0) {
-              <p class="chat__suggestions-status">{{ lang.translate('chat.noSuggestedQuestions') }}</p>
-            } @else {
-              <p class="chat__suggestions-label">{{ lang.translate('chat.guideTitle') }}</p>
-              <div class="chat__suggestions-list">
-                @for (q of suggestedQuestions(); track q.id) {
-                  <button type="button" class="chat__suggestion-chip" (click)="selectSuggestedQuestion(q)">
-                    {{ displayQuestion(q) }}
-                  </button>
-                }
-              </div>
+        @if (categories().length > 0) {
+          <div class="welcome__topics" role="tablist" [attr.aria-label]="lang.translate('chat.browseTopics')">
+            <button
+              type="button"
+              role="tab"
+              class="welcome__topic"
+              [class.welcome__topic--active]="!selectedCategory()"
+              [attr.aria-selected]="!selectedCategory()"
+              (click)="selectCategory(null)"
+            >
+              <span class="material-symbols-outlined">auto_awesome</span>
+              {{ lang.translate('chat.forYou') }}
+            </button>
+            @for (cat of categories(); track cat.id) {
+              <button
+                type="button"
+                role="tab"
+                class="welcome__topic"
+                [class.welcome__topic--active]="selectedCategoryId() === cat.id"
+                [attr.aria-selected]="selectedCategoryId() === cat.id"
+                (click)="selectCategory(cat)"
+              >
+                {{ cat.name }}
+              </button>
             }
           </div>
         }
-      </div>
+
+        <div class="welcome__panel">
+          <div class="welcome__panel-head">
+            <span class="welcome__panel-label">
+              {{ selectedCategory() ? lang.translate('chat.guideTitle') + ' · ' + selectedCategory()!.name : lang.translate('chat.tryAsking') }}
+            </span>
+          </div>
+
+          @if (selectedCategory() ? suggestedQuestionsLoading() : featuredLoading()) {
+            <div class="welcome__grid" aria-hidden="true">
+              @for (i of [1, 2, 3, 4]; track i) {
+                <div class="welcome__card welcome__card--skeleton">
+                  <span class="welcome__skeleton-line"></span>
+                  <span class="welcome__skeleton-line welcome__skeleton-line--short"></span>
+                </div>
+              }
+            </div>
+          } @else if (selectedCategory() && suggestedQuestionsError()) {
+            <p class="error-text">{{ suggestedQuestionsError() }}</p>
+          } @else if (visibleSuggestions().length === 0) {
+            <p class="welcome__hint">
+              <span class="material-symbols-outlined">edit</span>
+              {{ lang.translate(selectedCategory() ? 'chat.noSuggestedQuestions' : 'chat.emptyPrompt') }}
+            </p>
+          } @else {
+            <div class="welcome__grid" [class.welcome__grid--top]="!selectedCategory()">
+              @for (q of visibleSuggestions(); track q.id) {
+                <button type="button" class="welcome__card" [title]="displayQuestion(q)" (click)="selectSuggestedQuestion(q)">
+                  @if (!selectedCategory() && q.category_name) {
+                    <span class="welcome__card-tag">{{ q.category_name }}</span>
+                  }
+                  <span class="welcome__card-text" dir="auto">{{ displayQuestion(q) }}</span>
+                  <span class="material-symbols-outlined welcome__card-go">arrow_forward</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </section>
     }
 
     @for (message of messages(); track message.id) {

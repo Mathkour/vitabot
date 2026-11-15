@@ -1044,6 +1044,10 @@
                 <span class="material-symbols-outlined">help</span>
                 {{ lang.translate('kb.suggestedQuestions') }} ({{ suggestedQuestions().length }})
               </h4>
+              <p class="kb__section-empty kb__star-hint">
+                <span class="material-symbols-outlined">star</span>
+                {{ lang.translate('kb.homeHint') }}
+              </p>
 
               @if (sqLoading()) {
                 <div class="kb__content-loading">
@@ -1110,6 +1114,17 @@
                             </span>
                           }
                         </div>
+                        <button
+                          type="button"
+                          class="kb__delete-btn kb__star-btn"
+                          [class.kb__star-btn--on]="q.is_featured"
+                          [title]="lang.translate(q.is_featured ? 'kb.hideFromHome' : 'kb.showOnHome')"
+                          [attr.aria-label]="lang.translate(q.is_featured ? 'kb.hideFromHome' : 'kb.showOnHome')"
+                          [attr.aria-pressed]="!!q.is_featured"
+                          (click)="toggleFeatured(q)"
+                        >
+                          <span class="material-symbols-outlined">star</span>
+                        </button>
                         <button
                           type="button"
                           class="kb__delete-btn"

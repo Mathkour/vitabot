@@ -2344,6 +2344,82 @@ async def list_published_categories(tenant_id: str = Depends(get_current_tenant)
         return [dict(r) for r in rows]
 
 
+# Cards on the /chat welcome screen; also the most an admin can star.
+MAX_FEATURED_QUESTIONS = 6
+
+
+@app.get("/suggested-questions/featured")
+async def list_featured_suggested_questions(tenant_id: str = Depends(get_current_tenant)):
+    # Starter prompts for the /chat welcome screen, from published categories
+    # only: the questions a tenant admin starred ("Show on home" in Knowledge
+    # Base) first, then the most-clicked others fill the remaining slots —
+    # newest first among equals, so a fresh tenant still gets cards.
+    async with db.tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch(
+            """
+            SELECT sq.id, sq.category_id, c.name AS category_name,
+                   sq.question, sq.answer, sq.question_ar, sq.answer_ar
+            FROM suggested_questions sq
+            JOIN categories c ON c.id = sq.category_id AND c.tenant_id = sq.tenant_id
+            WHERE sq.tenant_id = $1 AND c.is_published = true
+            ORDER BY sq.is_featured DESC,
+                     CASE WHEN sq.is_featured THEN 0 ELSE sq.click_count END DESC,
+                     sq.created_at DESC
+            LIMIT $2
+            """,
+            tenant_id, MAX_FEATURED_QUESTIONS,
+        )
+        return [dict(r) for r in rows]
+
+
+@app.post("/suggested-questions/{question_id}/click", status_code=204)
+async def record_suggested_question_click(
+    question_id: str,
+    tenant_id: str = Depends(get_current_tenant),
+):
+    # Usage signal for the welcome screen's auto-filled slots. Clicks with a
+    # saved answer never reach /ask, so the chat page reports them here.
+    async with db.tenant_connection(tenant_id) as conn:
+        await conn.execute(
+            """
+            UPDATE suggested_questions sq SET click_count = click_count + 1
+            FROM categories c
+            WHERE sq.id = $1 AND sq.tenant_id = $2
+              AND c.id = sq.category_id AND c.is_published = true
+            """,
+            question_id, tenant_id,
+        )
+
+
+class FeatureQuestionRequest(BaseModel):
+    is_featured: bool
+
+
+@app.put("/suggested-questions/{question_id}/featured")
+async def set_suggested_question_featured(
+    question_id: str,
+    body: FeatureQuestionRequest,
+    tenant_id: str = Depends(require_admin),
+):
+    async with db.tenant_connection(tenant_id) as conn:
+        if body.is_featured:
+            count = await conn.fetchval(
+                "SELECT COUNT(*) FROM suggested_questions WHERE tenant_id = $1 AND is_featured AND id <> $2",
+                tenant_id, question_id,
+            )
+            if count >= MAX_FEATURED_QUESTIONS:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"You can show up to {MAX_FEATURED_QUESTIONS} questions on the home screen. Remove one first.",
+                )
+        result = await conn.execute(
+            "UPDATE suggested_questions SET is_featured = $1 WHERE id = $2 AND tenant_id = $3",
+            body.is_featured, question_id, tenant_id,
+        )
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Question not found")
+    return {"status": "updated", "is_featured": body.is_featured}
+
 
 @app.get("/categories/{category_id}/suggested-questions")
 async def list_suggested_questions(
@@ -2368,7 +2444,7 @@ async def list_suggested_questions(
             if not published:
                 raise HTTPException(status_code=404, detail="Category not found")
         rows = await conn.fetch(
-            "SELECT id, question, answer, question_ar, answer_ar FROM suggested_questions WHERE category_id = $1 AND tenant_id = $2 ORDER BY created_at",
+            "SELECT id, question, answer, question_ar, answer_ar, is_featured FROM suggested_questions WHERE category_id = $1 AND tenant_id = $2 ORDER BY is_featured DESC, created_at",
             category_id, tenant_id,
         )
         return [dict(r) for r in rows]

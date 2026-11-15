@@ -88,10 +88,10 @@ export class AuthPage {
       return;
     }
 
+    // The bot is everyone's home page, admins included — the dashboard is
+    // one click away in the sidebar.
     if (this.authService.isSuperadmin()) {
       this.router.navigate(['/superadmin']);
-    } else if (this.authService.isAdmin()) {
-      this.router.navigate(['/dashboard']);
     } else {
       this.router.navigate(['/chat']);
     }

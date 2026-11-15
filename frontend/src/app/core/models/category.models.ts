@@ -40,4 +40,8 @@ export interface SuggestedQuestion {
   answer: string;
   question_ar?: string | null;
   answer_ar?: string | null;
+  /** Starred by an admin to show on the /chat welcome screen. */
+  is_featured?: boolean;
+  /** Only on /suggested-questions/featured results. */
+  category_name?: string;
 }

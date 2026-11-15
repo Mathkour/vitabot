@@ -1048,6 +1048,22 @@ export class KnowledgeBase implements OnInit, OnDestroy {
     });
   }
 
+  /** Star toggle: pins the question to the /chat welcome screen (ahead of the most-clicked ones). */
+  toggleFeatured(q: SuggestedQuestion): void {
+    const next = !q.is_featured;
+    this.deleteQuestionError.set(null);
+    this.suggestedQuestions.update((qs) => qs.map((x) => (x.id === q.id ? { ...x, is_featured: next } : x)));
+    this.suggestedQuestionsService.setFeatured(q.id, next).subscribe({
+      error: (err: HttpErrorResponse) => {
+        this.suggestedQuestions.update((qs) => qs.map((x) => (x.id === q.id ? { ...x, is_featured: !next } : x)));
+        // 409 = the home screen is full; say so in the UI language.
+        this.deleteQuestionError.set(
+          this.lang.translate(err.status === 409 ? 'kb.homeLimit' : 'kb.couldNotFeature'),
+        );
+      },
+    });
+  }
+
   displayQuestion(q: SuggestedQuestion): string {
     return this.lang.lang() === 'ar' ? q.question_ar || q.question : q.question;
   }

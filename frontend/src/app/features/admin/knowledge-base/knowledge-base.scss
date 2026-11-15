@@ -564,6 +564,32 @@
   color: var(--color-text-secondary);
 }
 
+/* Star toggle: pins a suggested question to the /chat welcome screen.
+   The icon font has no FILL axis, so "on" is shown with colour + tint. */
+.kb__delete-btn.kb__star-btn {
+  &:hover:not(:disabled) {
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
+  }
+
+  &--on {
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
+  }
+}
+
+.kb__star-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+
+  .material-symbols-outlined {
+    font-size: 16px;
+    color: var(--color-warning);
+  }
+}
+
 .kb__item-list {
   list-style: none;
   margin: 0;

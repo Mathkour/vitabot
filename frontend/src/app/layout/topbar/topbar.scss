@@ -394,7 +394,9 @@
   }
 }
 
-@media (max-width: 600px) {
+/* Up to tablet width the labelled quick links plus the user name don't fit
+   beside each other (the bar overflowed by ~40px at 768px), so go icon-only. */
+@media (max-width: 860px) {
   .topbar__quick-link-label {
     display: none;
   }
@@ -406,4 +408,32 @@
   .topbar__user-info {
     display: none;
   }
+}
+
+/* Phones: the member top bar (logo + 4 quick links + actions) is wider than
+   the screen at the 600px sizes above, which made the whole page scroll
+   sideways. Tighten the spacing so it fits down to ~360px. */
+@media (max-width: 480px) {
+  .topbar { padding: 0 12px; }
+
+  .topbar__logo { height: 26px; }
+
+  .topbar__quick-links {
+    margin-inline-start: 8px;
+    gap: 3px;
+  }
+
+  .topbar__quick-link { padding: 0 5px; }
+
+  .topbar__user { padding: 0; }
+
+  .topbar__actions { gap: 2px; }
+
+  .topbar__icon-btn {
+    min-width: 34px;
+    padding: 0 4px;
+  }
+
+  .topbar__divider,
+  .topbar__user-caret { display: none; }
 }

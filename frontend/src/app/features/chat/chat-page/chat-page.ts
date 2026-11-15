@@ -18,6 +18,7 @@ import { environment } from '../../../../environments/environment';
 import { Category, SuggestedQuestion } from '../../../core/models/category.models';
 import { AskMediaItem, AskResponse, ChatMessage, RatingScore } from '../../../core/models/chat.models';
 import { ConversationSummary } from '../../../core/models/conversation.models';
+import { AuthService } from '../../../core/services/auth.service';
 import { CategoriesService } from '../../../core/services/categories.service';
 import { ChatService } from '../../../core/services/chat.service';
 import { ConversationsService } from '../../../core/services/conversations.service';
@@ -32,7 +33,6 @@ type VoiceStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 /** Keep in sync with .chat__input's max-height in chat-page.scss. */
 const MAX_TEXTAREA_HEIGHT_PX = 150;
-
 @Component({
   selector: 'app-chat-page',
   imports: [FormsModule, DatePipe, DisplayNamePipe],
@@ -49,6 +49,7 @@ export class ChatPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly lang = inject(LanguageService);
+  private readonly auth = inject(AuthService);
   private conversationId: string | null = null;
   private readonly rawObjectUrls: string[] = [];
   private mediaRecorder: MediaRecorder | null = null;
@@ -94,6 +95,18 @@ export class ChatPage implements OnInit, OnDestroy {
 
   readonly showEmptyState = computed(() => this.messages().length === 0);
 
+  /** Welcome-screen questions an admin starred in Knowledge Base (shown before a topic is picked). */
+  readonly featuredQuestions = signal<SuggestedQuestion[]>([]);
+  readonly featuredLoading = signal(true);
+
+  /** Cards on the welcome screen: the picked topic's questions, or the cross-topic featured set. */
+  readonly visibleSuggestions = computed(() =>
+    this.selectedCategory() ? this.suggestedQuestions() : this.featuredQuestions(),
+  );
+
+  /** Username for the welcome greeting; an email-style username shows only its local part. */
+  readonly greetingName = computed(() => (this.auth.currentUser().username ?? '').split('@')[0]);
+
   readonly voiceStatusLabel = computed(() => {
     switch (this.voiceStatus()) {
       case 'listening': return this.lang.translate('common.listening');
@@ -116,6 +129,7 @@ export class ChatPage implements OnInit, OnDestroy {
     this.categoriesService.listPublished().subscribe({
       next: (cats) => this.categories.set(cats),
     });
+    this.loadFeatured();
     // ?history=<conversationId>: from the "your question was answered"
     // notification. Opens History with that conversation expanded, where
     // the admin's answer was added as a reply. Subscribed (not a snapshot):
@@ -199,7 +213,7 @@ export class ChatPage implements OnInit, OnDestroy {
     }
 
     this.suggestedQuestionsLoading.set(true);
-    this.suggestedQuestionsService.list(cat.id).subscribe({
+    this.suggestedQuestionsService.list(cat.id, true).subscribe({
       next: (qs) => {
         this.suggestedQuestions.set(qs);
         this.suggestedQuestionsLoading.set(false);
@@ -214,6 +228,29 @@ export class ChatPage implements OnInit, OnDestroy {
     });
   }
 
+  /** Back to the welcome screen with a fresh conversation. */
+  startNewChat(): void {
+    if (this.isLoading()) return;
+    this.stopAudio();
+    this.conversationId = null;
+    this.messages.set([]);
+    this.errorMessage.set(null);
+    this.selectCategory(null);
+    this.loadFeatured();
+    this.messageInput?.nativeElement.focus();
+  }
+
+  private loadFeatured(): void {
+    this.featuredLoading.set(true);
+    this.suggestedQuestionsService.listFeatured().subscribe({
+      next: (qs) => {
+        this.featuredQuestions.set(qs);
+        this.featuredLoading.set(false);
+      },
+      error: () => this.featuredLoading.set(false),
+    });
+  }
+
   displayQuestion(q: SuggestedQuestion): string {
     return this.lang.lang() === 'ar' ? q.question_ar || q.question : q.question;
   }
@@ -223,6 +260,7 @@ export class ChatPage implements OnInit, OnDestroy {
   }
 
   selectSuggestedQuestion(q: SuggestedQuestion): void {
+    this.suggestedQuestionsService.recordClick(q.id).subscribe({ error: () => {} });
     const question = this.displayQuestion(q);
     const answer = this.displayAnswer(q);
 
@@ -239,7 +277,6 @@ export class ChatPage implements OnInit, OnDestroy {
     this.draft.set(question);
     this.send();
   }
-
   // ──────────── Conversation history ────────────
 
   readonly isHistoryOpen = signal(false);
