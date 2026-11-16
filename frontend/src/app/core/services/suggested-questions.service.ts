@@ -17,7 +17,7 @@ export class SuggestedQuestionsService {
     );
   }
 
-  /** The questions admins starred for the chat welcome screen. */
+  /** Chat welcome-screen cards: admin-starred first, then most clicked, from Knowledge Base and the FAQ. */
   listFeatured(): Observable<SuggestedQuestion[]> {
     return this.http.get<SuggestedQuestion[]>(`${environment.apiBaseUrl}/suggested-questions/featured`, {
       context: skipLoadingIndicator(),
@@ -31,11 +31,11 @@ export class SuggestedQuestionsService {
   }
 
   /** Counts a click — feeds the welcome screen's most-clicked slots. Fire-and-forget. */
-  recordClick(id: string): Observable<void> {
+  recordClick(id: string, source: 'suggested' | 'faq' = 'suggested'): Observable<void> {
     return this.http.post<void>(
       `${environment.apiBaseUrl}/suggested-questions/${id}/click`,
       {},
-      { context: skipLoadingIndicator() },
+      { context: skipLoadingIndicator(), params: { source } },
     );
   }
 

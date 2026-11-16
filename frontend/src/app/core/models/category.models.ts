@@ -44,4 +44,7 @@ export interface SuggestedQuestion {
   is_featured?: boolean;
   /** Only on /suggested-questions/featured results. */
   category_name?: string;
+  category_name_ar?: string | null;
+  /** Which pool a featured card came from: Knowledge Base or the FAQ. */
+  source?: 'suggested' | 'faq';
 }

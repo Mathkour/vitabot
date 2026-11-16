@@ -255,12 +255,21 @@ export class ChatPage implements OnInit, OnDestroy {
     return this.lang.lang() === 'ar' ? q.question_ar || q.question : q.question;
   }
 
+  /** A topic tag only helps when the cards come from different topics. */
+  readonly showCardTags = computed(
+    () => !this.selectedCategory() && new Set(this.featuredQuestions().map((q) => q.category_name)).size > 1,
+  );
+
+  displayTag(q: SuggestedQuestion): string {
+    return (this.lang.lang() === 'ar' && q.category_name_ar) || q.category_name || '';
+  }
+
   displayAnswer(q: SuggestedQuestion): string {
     return this.lang.lang() === 'ar' ? q.answer_ar || q.answer : q.answer;
   }
 
   selectSuggestedQuestion(q: SuggestedQuestion): void {
-    this.suggestedQuestionsService.recordClick(q.id).subscribe({ error: () => {} });
+    this.suggestedQuestionsService.recordClick(q.id, q.source).subscribe({ error: () => {} });
     const question = this.displayQuestion(q);
     const answer = this.displayAnswer(q);
 

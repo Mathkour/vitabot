@@ -1,5 +1,5 @@
 <div class="chat">
-  <div class="chat__header">
+  <div class="chat__header" [class.chat__header--float]="showEmptyState()">
     <div class="chat__header-text">
       @if (!showEmptyState()) {
         <h2>{{ lang.translate('chat.title') }}</h2>
@@ -78,11 +78,9 @@
         }
 
         <div class="welcome__panel">
-          <div class="welcome__panel-head">
-            <span class="welcome__panel-label">
-              {{ selectedCategory() ? lang.translate('chat.guideTitle') + ' · ' + selectedCategory()!.name : lang.translate('chat.tryAsking') }}
-            </span>
-          </div>
+          @if (categories().length === 0) {
+            <span class="welcome__panel-label">{{ lang.translate('chat.tryAsking') }}</span>
+          }
 
           @if (selectedCategory() ? suggestedQuestionsLoading() : featuredLoading()) {
             <div class="welcome__grid" aria-hidden="true">
@@ -104,8 +102,8 @@
             <div class="welcome__grid" [class.welcome__grid--top]="!selectedCategory()">
               @for (q of visibleSuggestions(); track q.id) {
                 <button type="button" class="welcome__card" [title]="displayQuestion(q)" (click)="selectSuggestedQuestion(q)">
-                  @if (!selectedCategory() && q.category_name) {
-                    <span class="welcome__card-tag">{{ q.category_name }}</span>
+                  @if (showCardTags() && displayTag(q)) {
+                    <span class="welcome__card-tag">{{ displayTag(q) }}</span>
                   }
                   <span class="welcome__card-text" dir="auto">{{ displayQuestion(q) }}</span>
                   <span class="material-symbols-outlined welcome__card-go">arrow_forward</span>

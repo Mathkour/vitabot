@@ -2350,21 +2350,38 @@ MAX_FEATURED_QUESTIONS = 6
 
 @app.get("/suggested-questions/featured")
 async def list_featured_suggested_questions(tenant_id: str = Depends(get_current_tenant)):
-    # Starter prompts for the /chat welcome screen, from published categories
-    # only: the questions a tenant admin starred ("Show on home" in Knowledge
-    # Base) first, then the most-clicked others fill the remaining slots —
-    # newest first among equals, so a fresh tenant still gets cards.
+    # Starter prompts for the /chat welcome screen, picked from two pools:
+    # Knowledge Base suggested questions (published categories only) and
+    # categorized FAQ items. Order: the questions a tenant admin starred
+    # ("Show on home" in Knowledge Base), then the most clicked, then ones
+    # with a saved answer (they reply instantly), then a shuffle that changes
+    # daily so unclicked questions all get a turn at being discovered.
     async with db.tenant_connection(tenant_id) as conn:
         rows = await conn.fetch(
             """
-            SELECT sq.id, sq.category_id, c.name AS category_name,
-                   sq.question, sq.answer, sq.question_ar, sq.answer_ar
-            FROM suggested_questions sq
-            JOIN categories c ON c.id = sq.category_id AND c.tenant_id = sq.tenant_id
-            WHERE sq.tenant_id = $1 AND c.is_published = true
-            ORDER BY sq.is_featured DESC,
-                     CASE WHEN sq.is_featured THEN 0 ELSE sq.click_count END DESC,
-                     sq.created_at DESC
+            SELECT id, source, category_id, category_name, category_name_ar,
+                   question, answer, question_ar, answer_ar
+            FROM (
+                SELECT sq.id, 'suggested' AS source, sq.category_id,
+                       c.name AS category_name, NULL::text AS category_name_ar,
+                       sq.question, sq.answer, sq.question_ar, sq.answer_ar,
+                       sq.is_featured, sq.click_count
+                FROM suggested_questions sq
+                JOIN categories c ON c.id = sq.category_id AND c.tenant_id = sq.tenant_id
+                WHERE sq.tenant_id = $1 AND c.is_published = true
+                UNION ALL
+                SELECT f.id, 'faq' AS source, NULL::uuid AS category_id,
+                       fc.name_en AS category_name, fc.name_ar AS category_name_ar,
+                       f.question, f.answer, f.question_ar, f.answer_ar,
+                       false AS is_featured, f.click_count
+                FROM faq_items f
+                JOIN faq_categories fc ON fc.id = f.category_id AND fc.tenant_id = f.tenant_id
+                WHERE f.tenant_id = $1
+            ) q
+            ORDER BY is_featured DESC,
+                     CASE WHEN is_featured THEN 0 ELSE click_count END DESC,
+                     (coalesce(answer, '') <> '') DESC,
+                     md5(id::text || current_date::text)
             LIMIT $2
             """,
             tenant_id, MAX_FEATURED_QUESTIONS,
@@ -2375,11 +2392,19 @@ async def list_featured_suggested_questions(tenant_id: str = Depends(get_current
 @app.post("/suggested-questions/{question_id}/click", status_code=204)
 async def record_suggested_question_click(
     question_id: str,
+    source: str = "suggested",
     tenant_id: str = Depends(get_current_tenant),
 ):
     # Usage signal for the welcome screen's auto-filled slots. Clicks with a
     # saved answer never reach /ask, so the chat page reports them here.
+    # source=faq: the card came from the FAQ pool rather than Knowledge Base.
     async with db.tenant_connection(tenant_id) as conn:
+        if source == "faq":
+            await conn.execute(
+                "UPDATE faq_items SET click_count = click_count + 1 WHERE id = $1 AND tenant_id = $2",
+                question_id, tenant_id,
+            )
+            return
         await conn.execute(
             """
             UPDATE suggested_questions sq SET click_count = click_count + 1
