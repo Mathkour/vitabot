@@ -815,9 +815,18 @@ async def odoo_sso(
                 f"Odoo SSO: odoo_identity={odoo_identity!r} company_slug={body.company_slug!r} company_id={company_id!r}"
             )
 
+            # The identity is unique per company, not per tenant: several
+            # customer Odoo databases can share a Client Key, and Odoo
+            # numbers users from 1 in each (admin is always 2), so the same
+            # identity from another company is another person. Match this
+            # company's row, or a company-less one (it gets this company
+            # below); with no company resolved, any row for this identity.
             user = await conn.fetchrow(
-                "SELECT id, tenant_id, role, username, token_version FROM users WHERE tenant_id = $1 AND odoo_identity = $2",
-                tenant_id, odoo_identity,
+                "SELECT id, tenant_id, role, username, token_version FROM users "
+                "WHERE tenant_id = $1 AND odoo_identity = $2 "
+                "AND ($3::uuid IS NULL OR company_id IS NULL OR company_id = $3) "
+                "ORDER BY (company_id IS NOT DISTINCT FROM $3) DESC, created_at LIMIT 1",
+                tenant_id, odoo_identity, company_id,
             )
             if user is None:
                 # One-time transition for accounts provisioned by the legacy
@@ -929,10 +938,11 @@ async def odoo_sso(
                                 )
                             break
                         except asyncpg.UniqueViolationError as e:
-                            if e.constraint_name == "users_tenant_odoo_identity_uniq":
+                            if e.constraint_name == "users_tenant_odoo_identity_company_uniq":
                                 user = await conn.fetchrow(
-                                    "SELECT id, tenant_id, role, username, token_version FROM users WHERE tenant_id = $1 AND odoo_identity = $2",
-                                    tenant_id, odoo_identity,
+                                    "SELECT id, tenant_id, role, username, token_version FROM users "
+                                    "WHERE tenant_id = $1 AND odoo_identity = $2 AND company_id IS NOT DISTINCT FROM $3",
+                                    tenant_id, odoo_identity, company_id,
                                 )
                                 break
                             if attempt == 0:
