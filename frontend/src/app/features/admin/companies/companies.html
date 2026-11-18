@@ -60,6 +60,12 @@
                 } @else {
                   {{ company.name }}
                 }
+                <div class="companies__slug" dir="ltr">
+                  {{ company.slug }}
+                  @if (company.sso_aliases?.length) {
+                    · {{ lang.translate('companies.aliases') }} {{ company.sso_aliases.join(', ') }}
+                  }
+                </div>
               </td>
               <td>{{ company.user_count }}</td>
               <td>

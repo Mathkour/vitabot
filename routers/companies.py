@@ -61,12 +61,12 @@ async def list_companies(tenant_id: str = Depends(require_vita_care_admin)):
     async with db.tenant_connection(tenant_id) as conn:
         rows = await conn.fetch(
             """
-            SELECT c.id, c.name, c.created_at, count(u.id) AS user_count,
+            SELECT c.id, c.name, c.slug, c.sso_aliases, c.created_at, count(u.id) AS user_count,
                    c.ask_odoo_enabled, (c.odoo_connection_id IS NOT NULL) AS odoo_configured
             FROM companies c
             LEFT JOIN users u ON u.company_id = c.id AND u.tenant_id = c.tenant_id
             WHERE c.tenant_id = $1
-            GROUP BY c.id, c.name, c.created_at, c.ask_odoo_enabled, c.odoo_connection_id
+            GROUP BY c.id, c.name, c.slug, c.sso_aliases, c.created_at, c.ask_odoo_enabled, c.odoo_connection_id
             ORDER BY c.name
             """,
             tenant_id,

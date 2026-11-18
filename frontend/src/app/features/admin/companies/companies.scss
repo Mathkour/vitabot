@@ -18,6 +18,13 @@
   margin: 6px 0 0;
 }
 
+.companies__slug {
+  color: var(--color-text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
 .companies__create-card {
   padding: 18px 20px;
 }

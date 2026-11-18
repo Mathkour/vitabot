@@ -1,6 +1,10 @@
 export interface Company {
   id: string;
   name: string;
+  /** Odoo SSO matches the Odoo host's subdomain to this (e.g. hawa-wa-adam). */
+  slug: string;
+  /** Other subdomains that also sign into this company (e.g. almisk for misk). */
+  sso_aliases: string[];
   created_at: string;
   user_count: number;
   ask_odoo_enabled: boolean;
