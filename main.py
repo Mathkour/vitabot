@@ -800,11 +800,23 @@ async def odoo_sso(
             # A slug that can't be resolved (empty after normalising, or the
             # lookup/create failing) signs the user in with no company
             # rather than blocking them — an admin can assign one later.
+            # A company's sso_aliases let an Odoo host that doesn't match
+            # its slug sign into it (almisk.… for company "misk"); an alias
+            # wins over a company auto-created from that host earlier.
             company_id = None
             if body.company_slug:
                 try:
                     async with conn.transaction():
-                        company_id = await _resolve_or_create_company(conn, tenant_id, body.company_slug)
+                        slug = normalize_company_slug(body.company_slug)
+                        aliased = await conn.fetchval(
+                            "SELECT id FROM companies WHERE tenant_id = $1 AND $2 = ANY(sso_aliases) "
+                            "ORDER BY created_at LIMIT 1",
+                            tenant_id, slug,
+                        ) if slug else None
+                        if aliased is not None:
+                            company_id = str(aliased)
+                        else:
+                            company_id = await _resolve_or_create_company(conn, tenant_id, body.company_slug)
                 except Exception as e:
                     logger.warning(
                         f"Odoo SSO: could not resolve company_slug={body.company_slug!r}, "
