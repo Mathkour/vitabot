@@ -859,13 +859,41 @@ async def odoo_sso(
                 # account per company (company-less accounts share one
                 # bucket), so an account for this email in ANOTHER company
                 # is fine — a new one is created for this company below.
-                # Only a different account in this SAME company is refused,
-                # rather than silently creating a colliding second one.
-                email_taken = await conn.fetchval(
-                    "SELECT 1 FROM users WHERE tenant_id = $1 AND LOWER(email) = LOWER($2) "
-                    "AND company_id IS NOT DISTINCT FROM $3",
+                # An account for this email already in this SAME company
+                # (made by hand in the portal, or linked to an Odoo user that
+                # was since recreated / a Client Key that was rotated) is
+                # relinked to this Odoo user when this request comes from the
+                # company's own Odoo (companies.odoo_connection_id) or the
+                # same Odoo instance the account was last used from. Tenant
+                # admin/superadmin accounts are never relinked this way.
+                existing = await conn.fetchrow(
+                    "SELECT id, tenant_id, role, username, token_version, odoo_identity, odoo_client_key FROM users "
+                    "WHERE tenant_id = $1 AND LOWER(email) = LOWER($2) AND company_id IS NOT DISTINCT FROM $3 "
+                    "ORDER BY created_at LIMIT 1",
                     tenant_id, body.email, company_id,
                 )
+                email_taken = existing is not None
+                if existing is not None and existing["role"] not in ("admin", "superadmin"):
+                    company_odoo = False
+                    if company_id and body.client_key:
+                        company_odoo = bool(await conn.fetchval(
+                            "SELECT 1 FROM companies c JOIN odoo_client_connections occ ON occ.id = c.odoo_connection_id "
+                            "WHERE c.id = $1 AND occ.client_key = $2",
+                            company_id, body.client_key,
+                        ))
+                    same_instance = existing["odoo_client_key"] == body.client_key
+                    if company_odoo or same_instance:
+                        logger.info(
+                            f"Odoo SSO: relinking user {existing['id']} in company {company_id!r} from "
+                            f"odoo_identity={existing['odoo_identity']!r} to {odoo_identity!r} "
+                            f"(company_odoo={company_odoo}, same_instance={same_instance})"
+                        )
+                        await conn.execute(
+                            "UPDATE users SET odoo_identity = $1, odoo_client_key = $2 WHERE id = $3",
+                            odoo_identity, body.client_key, existing["id"],
+                        )
+                        user = existing
+                        email_taken = False
                 if email_taken:
                     logger.warning(
                         f"SSO rejected (email already linked in this company): odoo_identity={odoo_identity!r} "
@@ -876,40 +904,41 @@ async def odoo_sso(
                         detail="This email is already linked to a different Odoo user in this company",
                     )
 
-                random_password = secrets.token_urlsafe(32)
-                hashed = hash_password(random_password)
-                username_to_use = body.username
-                for attempt in range(2):
-                    try:
-                        # db.tenant_connection() already holds one open
-                        # transaction for this whole `async with` block — a
-                        # bare try/except around this INSERT would, on
-                        # conflict, leave that outer transaction aborted
-                        # (InFailedSQLTransactionError). Nesting
-                        # conn.transaction() makes asyncpg issue a SAVEPOINT
-                        # instead of BEGIN, so a failure only rolls back to
-                        # it, not the whole transaction.
-                        async with conn.transaction():
-                            user = await conn.fetchrow(
-                                """
-                                INSERT INTO users (tenant_id, email, password_hash, role, username, odoo_client_key, odoo_identity, company_id)
-                                VALUES ($1, $2, $3, 'member', $4, $5, $6, $7)
-                                RETURNING id, tenant_id, role, username, token_version
-                                """,
-                                tenant_id, body.email.lower(), hashed, username_to_use, body.client_key, odoo_identity, company_id,
-                            )
-                        break
-                    except asyncpg.UniqueViolationError as e:
-                        if e.constraint_name == "users_tenant_odoo_identity_uniq":
-                            user = await conn.fetchrow(
-                                "SELECT id, tenant_id, role, username, token_version FROM users WHERE tenant_id = $1 AND odoo_identity = $2",
-                                tenant_id, odoo_identity,
-                            )
+                if user is None:
+                    random_password = secrets.token_urlsafe(32)
+                    hashed = hash_password(random_password)
+                    username_to_use = body.username
+                    for attempt in range(2):
+                        try:
+                            # db.tenant_connection() already holds one open
+                            # transaction for this whole `async with` block — a
+                            # bare try/except around this INSERT would, on
+                            # conflict, leave that outer transaction aborted
+                            # (InFailedSQLTransactionError). Nesting
+                            # conn.transaction() makes asyncpg issue a SAVEPOINT
+                            # instead of BEGIN, so a failure only rolls back to
+                            # it, not the whole transaction.
+                            async with conn.transaction():
+                                user = await conn.fetchrow(
+                                    """
+                                    INSERT INTO users (tenant_id, email, password_hash, role, username, odoo_client_key, odoo_identity, company_id)
+                                    VALUES ($1, $2, $3, 'member', $4, $5, $6, $7)
+                                    RETURNING id, tenant_id, role, username, token_version
+                                    """,
+                                    tenant_id, body.email.lower(), hashed, username_to_use, body.client_key, odoo_identity, company_id,
+                                )
                             break
-                        if attempt == 0:
-                            username_to_use = f"{body.username}-{secrets.token_hex(3)}"
-                            continue
-                        raise HTTPException(status_code=500, detail="Could not create user") from e
+                        except asyncpg.UniqueViolationError as e:
+                            if e.constraint_name == "users_tenant_odoo_identity_uniq":
+                                user = await conn.fetchrow(
+                                    "SELECT id, tenant_id, role, username, token_version FROM users WHERE tenant_id = $1 AND odoo_identity = $2",
+                                    tenant_id, odoo_identity,
+                                )
+                                break
+                            if attempt == 0:
+                                username_to_use = f"{body.username}-{secrets.token_hex(3)}"
+                                continue
+                            raise HTTPException(status_code=500, detail="Could not create user") from e
             else:
                 # company_id only overwritten when this request actually
                 # resolved one — COALESCE leaves their existing assignment
