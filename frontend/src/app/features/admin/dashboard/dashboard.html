@@ -18,6 +18,20 @@
   } @else if (loadError()) {
     <div class="card dash__status"><p class="error-text">{{ loadError() }}</p></div>
   } @else if (data(); as d) {
+    <section class="dash__section">
+      <h3 class="dash__section-title">{{ lang.translate('dashboard.overview') }}</h3>
+      <div class="dash__stats">
+        <a class="card dash__stat dash__stat--link" routerLink="/companies">
+          <span class="dash__stat-label">{{ lang.translate('dashboard.totalCompanies') }}</span>
+          <span class="dash__stat-value">{{ d.total_companies | number }}</span>
+        </a>
+        <a class="card dash__stat dash__stat--link" routerLink="/users">
+          <span class="dash__stat-label">{{ lang.translate('dashboard.totalUsers') }}</span>
+          <span class="dash__stat-value">{{ d.total_users | number }}</span>
+        </a>
+      </div>
+    </section>
+
     <section class="dash__section" [attr.aria-label]="lang.translate('dashboard.needsAttention')">
       <h3 class="dash__section-title">
         {{ lang.translate('dashboard.needsAttention') }}

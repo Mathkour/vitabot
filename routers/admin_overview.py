@@ -61,6 +61,12 @@ async def dashboard_summary(
                 WHERE m.tenant_id = $1 AND m.role = 'user' AND m.created_at >= {window}""",
             tenant_id, days,
         )
+        total_companies = await _safe_val(
+            conn, "SELECT count(*) FROM companies WHERE tenant_id = $1", tenant_id,
+        )
+        total_users = await _safe_val(
+            conn, "SELECT count(*) FROM users WHERE tenant_id = $1", tenant_id,
+        )
         unanswered_in_period = await _safe_val(
             conn,
             f"SELECT count(*) FROM unanswered_questions WHERE tenant_id = $1 AND created_at >= {window}",
@@ -128,6 +134,8 @@ async def dashboard_summary(
         "questions": questions,
         "questions_prev": questions_prev,
         "active_users": active_users,
+        "total_companies": total_companies,
+        "total_users": total_users,
         "answered_rate": round(100 * (1 - unanswered_in_period / questions)) if questions else None,
         "unanswered_in_period": unanswered_in_period,
         "satisfaction_rate": round(100 * rated["up"] / total_rated) if total_rated else None,

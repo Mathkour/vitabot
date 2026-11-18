@@ -3,6 +3,9 @@ export interface DashboardSummary {
   questions: number;
   questions_prev: number;
   active_users: number;
+  /** All-time totals, not limited to the selected period. */
+  total_companies: number;
+  total_users: number;
   answered_rate: number | null;
   unanswered_in_period: number;
   satisfaction_rate: number | null;
