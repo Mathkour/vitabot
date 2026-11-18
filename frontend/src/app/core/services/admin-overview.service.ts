@@ -36,6 +36,10 @@ export class AdminOverviewService {
     return this.http.post<{ status: string }>(`${this.api}/answer-feedback/${id}/dismiss`, {});
   }
 
+  deleteFeedback(id: string): Observable<{ status: string }> {
+    return this.http.delete<{ status: string }>(`${this.api}/answer-feedback/${id}`);
+  }
+
   reopenFeedback(id: string): Observable<{ status: string }> {
     return this.http.post<{ status: string }>(`${this.api}/answer-feedback/${id}/reopen`, {});
   }

@@ -32,3 +32,20 @@
 
   &:hover { color: var(--color-accent); }
 }
+
+// Delete sits apart from the review actions, at the start of the row.
+.uq__delete {
+  margin-inline-end: auto;
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 10px;
+
+  .material-symbols-outlined {
+    font-size: 20px;
+  }
+
+  &:hover:not(:disabled) {
+    color: var(--color-danger, #dc2626);
+    border-color: var(--color-danger, #dc2626);
+  }
+}

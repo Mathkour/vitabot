@@ -127,6 +127,10 @@
               </div>
             } @else {
               <div class="uq__actions">
+                <button type="button" class="btn btn-secondary uq__delete" [disabled]="busyId() === item.id" (click)="remove(item)"
+                        [attr.aria-label]="lang.translate('common.delete')" [title]="lang.translate('common.delete')">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
                 @switch (item.review_status) {
                   @case ('open') {
                     <button type="button" class="btn btn-secondary" [disabled]="busyId() === item.id" (click)="dismiss(item)">{{ lang.translate('feedback.answerWasFine') }}</button>

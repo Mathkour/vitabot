@@ -212,3 +212,17 @@ async def reopen_feedback(
     rating_id: str, tenant_id: str = Depends(require_admin), admin_id: str = Depends(get_current_user_id),
 ):
     return await _review(rating_id, tenant_id, admin_id, None, ("dismissed",))
+
+
+@router.delete("/{rating_id}")
+async def delete_feedback(
+    rating_id: str, tenant_id: str = Depends(require_admin), admin_id: str = Depends(get_current_user_id),
+):
+    """Removes an unwanted 👎 rating (tests, junk questions) from this page
+    and from the satisfaction numbers. The conversation itself, and any
+    answer already taught through "Fix", are kept."""
+    async with db.tenant_connection(tenant_id) as conn:
+        rating = await _load_rating(conn, rating_id, tenant_id)
+        await conn.execute("DELETE FROM ratings WHERE id = $1 AND tenant_id = $2", rating_id, tenant_id)
+        await log_activity(conn, tenant_id, admin_id, "feedback.delete", rating["question"] or "")
+    return {"status": "deleted"}

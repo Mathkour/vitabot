@@ -7,6 +7,7 @@ import { AnswerFeedbackItem, FeedbackStatus } from '../../../core/models/admin-o
 import { Category } from '../../../core/models/category.models';
 import { AdminOverviewService } from '../../../core/services/admin-overview.service';
 import { CategoriesService } from '../../../core/services/categories.service';
+import { ConfirmDialogService } from '../../../core/services/confirm-dialog.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { DropdownOption, DropdownSelect } from '../../../shared/dropdown-select/dropdown-select';
 import { Pagination } from '../../../shared/pagination/pagination';
@@ -30,6 +31,7 @@ const ALL_CATEGORIES = '';
 export class AnswerFeedback implements OnInit, OnDestroy {
   private readonly service = inject(AdminOverviewService);
   private readonly categoriesService = inject(CategoriesService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   readonly lang = inject(LanguageService);
 
   readonly tabs: { status: FeedbackStatus; icon: string }[] = [
@@ -130,6 +132,18 @@ export class AnswerFeedback implements OnInit, OnDestroy {
 
   reopen(item: AnswerFeedbackItem): void {
     this.run(item, () => this.service.reopenFeedback(item.id));
+  }
+
+  async remove(item: AnswerFeedbackItem): Promise<void> {
+    if (this.busyId()) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: this.lang.translate('feedback.deleteTitle'),
+      message: this.lang.translate('feedback.deleteMessage'),
+      confirmLabel: this.lang.translate('common.delete'),
+      cancelLabel: this.lang.translate('common.cancel'),
+    });
+    if (!confirmed) return;
+    this.run(item, () => this.service.deleteFeedback(item.id));
   }
 
   private run(item: AnswerFeedbackItem, call: () => ReturnType<AdminOverviewService['dismissFeedback']>): void {
