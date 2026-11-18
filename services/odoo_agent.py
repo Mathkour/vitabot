@@ -509,7 +509,14 @@ def odoo_agent_ask(
             + "\n---\n".join(kb_context)
         )
 
-    full_system_prompt = system_prompt + _date_context() + summary_context + identity_context + kb_context_text
+    # Two blocks so the static prompt (and TOOLS, which render before system)
+    # can be cached: the breakpoint sits on the static block, and everything
+    # that changes per request (date, live sales summary, identity, KB
+    # excerpts) goes in the second block after it.
+    full_system_prompt = [
+        {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": _date_context() + summary_context + identity_context + kb_context_text},
+    ]
 
     messages = []
     if history:
@@ -585,6 +592,11 @@ def odoo_agent_ask(
                 "content": json.dumps(result, default=str, ensure_ascii=False),
             })
 
+        # Cache the conversation so far, so the next round of this same
+        # question reads it back instead of paying full price again. At most
+        # max_tool_rounds - 1 (3) markers here plus the system one = 4, the
+        # API's per-request limit.
+        tool_results[-1]["cache_control"] = {"type": "ephemeral"}
         messages.append({"role": "user", "content": tool_results})
 
     return {

@@ -642,11 +642,15 @@ class LoginRequest(BaseModel):
 @limiter.limit("10/minute")
 async def login(request: Request, body: LoginRequest, response: Response):
     async with db.pool.acquire() as conn:
-        user = await conn.fetchrow(
-            "SELECT id, tenant_id, role, password_hash, username, company_id, token_version FROM users WHERE LOWER(email) = LOWER($1)",
+        # One email can have an account per company, so check the password
+        # against each and sign in to the (oldest) one it matches.
+        candidates = await conn.fetch(
+            "SELECT id, tenant_id, role, password_hash, username, company_id, token_version FROM users "
+            "WHERE LOWER(email) = LOWER($1) ORDER BY created_at",
             body.email,
         )
-        if user is None or not verify_password(body.password, user["password_hash"]):
+        user = next((u for u in candidates if verify_password(body.password, u["password_hash"])), None)
+        if user is None:
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
         tenant = await conn.fetchrow(
@@ -793,9 +797,20 @@ async def odoo_sso(
         odoo_identity = f"{body.client_key or 'internal'}:{body.odoo_user_id}"
 
         async with db.tenant_connection(tenant_id) as conn:
+            # A slug that can't be resolved (empty after normalising, or the
+            # lookup/create failing) signs the user in with no company
+            # rather than blocking them — an admin can assign one later.
             company_id = None
             if body.company_slug:
-                company_id = await _resolve_or_create_company(conn, tenant_id, body.company_slug)
+                try:
+                    async with conn.transaction():
+                        company_id = await _resolve_or_create_company(conn, tenant_id, body.company_slug)
+                except Exception as e:
+                    logger.warning(
+                        f"Odoo SSO: could not resolve company_slug={body.company_slug!r}, "
+                        f"continuing with no company: {e!r}"
+                    )
+                    company_id = None
             logger.info(
                 f"Odoo SSO: odoo_identity={odoo_identity!r} company_slug={body.company_slug!r} company_id={company_id!r}"
             )
@@ -821,12 +836,16 @@ async def odoo_sso(
                 # Care's own internal instance (no client_key, signed with
                 # ODOO_SSO_INTERNAL_SECRET) is trusted to claim any role, so
                 # staff promoted to admin before migrating aren't locked out.
+                # The same email can have one account per company, so prefer
+                # the row already in this request's company.
                 user = await conn.fetchrow(
                     "SELECT id, tenant_id, role, username, token_version FROM users "
                     "WHERE tenant_id = $1 AND LOWER(email) = LOWER($2) AND odoo_identity IS NULL "
                     "AND odoo_client_key IS NOT DISTINCT FROM $4 "
                     "AND ($4::text IS NULL OR role = 'member') "
-                    "AND (company_id IS NULL OR company_id IS NOT DISTINCT FROM $3)",
+                    "AND (company_id IS NULL OR company_id IS NOT DISTINCT FROM $3) "
+                    "ORDER BY (company_id IS NOT DISTINCT FROM $3) DESC, created_at "
+                    "LIMIT 1",
                     tenant_id, body.email, company_id, body.client_key,
                 )
                 if user is not None:
@@ -836,16 +855,26 @@ async def odoo_sso(
                     )
 
             if user is None:
-                # This is a brand-new odoo_identity. If the email already
-                # belongs to a DIFFERENT account, refuse rather than
-                # silently creating a second, colliding account — one real
-                # email maps to exactly one cpbot account, full stop.
+                # This is a brand-new odoo_identity. An email may have one
+                # account per company (company-less accounts share one
+                # bucket), so an account for this email in ANOTHER company
+                # is fine — a new one is created for this company below.
+                # Only a different account in this SAME company is refused,
+                # rather than silently creating a colliding second one.
                 email_taken = await conn.fetchval(
-                    "SELECT 1 FROM users WHERE tenant_id = $1 AND LOWER(email) = LOWER($2)",
-                    tenant_id, body.email,
+                    "SELECT 1 FROM users WHERE tenant_id = $1 AND LOWER(email) = LOWER($2) "
+                    "AND company_id IS NOT DISTINCT FROM $3",
+                    tenant_id, body.email, company_id,
                 )
                 if email_taken:
-                    raise HTTPException(status_code=409, detail="This email is already associated with a different account")
+                    logger.warning(
+                        f"SSO rejected (email already linked in this company): odoo_identity={odoo_identity!r} "
+                        f"email={body.email!r} company_id={company_id!r}"
+                    )
+                    raise HTTPException(
+                        status_code=409,
+                        detail="This email is already linked to a different Odoo user in this company",
+                    )
 
                 random_password = secrets.token_urlsafe(32)
                 hashed = hash_password(random_password)
@@ -884,11 +913,24 @@ async def odoo_sso(
             else:
                 # company_id only overwritten when this request actually
                 # resolved one — COALESCE leaves their existing assignment
-                # alone otherwise, rather than blanking it out.
-                await conn.execute(
-                    "UPDATE users SET odoo_client_key = $1, email = $2, company_id = COALESCE($3, company_id) WHERE id = $4",
-                    body.client_key, body.email.lower(), company_id, user["id"],
-                )
+                # alone otherwise, rather than blanking it out. If the new
+                # email/company would collide with another account in that
+                # company, keep the existing email/company instead of
+                # failing the sign-in.
+                try:
+                    async with conn.transaction():
+                        await conn.execute(
+                            "UPDATE users SET odoo_client_key = $1, email = $2, company_id = COALESCE($3, company_id) WHERE id = $4",
+                            body.client_key, body.email.lower(), company_id, user["id"],
+                        )
+                except asyncpg.UniqueViolationError:
+                    logger.warning(
+                        f"Odoo SSO: email/company update for user {user['id']} would collide; keeping the existing values"
+                    )
+                    await conn.execute(
+                        "UPDATE users SET odoo_client_key = $1 WHERE id = $2",
+                        body.client_key, user["id"],
+                    )
 
         token = create_access_token(
             {
@@ -932,7 +974,8 @@ async def odoo_sso(
 
     async with db.tenant_connection(tenant_id) as conn:
         user = await conn.fetchrow(
-            "SELECT id, tenant_id, role, username, token_version FROM users WHERE LOWER(email) = LOWER($1) AND tenant_id = $2",
+            "SELECT id, tenant_id, role, username, token_version FROM users WHERE LOWER(email) = LOWER($1) AND tenant_id = $2 "
+            "ORDER BY (company_id IS NULL) DESC, created_at LIMIT 1",
             body.email, tenant_id,
         )
         if user is None:
@@ -951,7 +994,8 @@ async def odoo_sso(
                     )
             except asyncpg.UniqueViolationError:
                 user = await conn.fetchrow(
-                    "SELECT id, tenant_id, role, username, token_version FROM users WHERE LOWER(email) = LOWER($1) AND tenant_id = $2",
+                    "SELECT id, tenant_id, role, username, token_version FROM users WHERE LOWER(email) = LOWER($1) AND tenant_id = $2 "
+            "ORDER BY (company_id IS NULL) DESC, created_at LIMIT 1",
                     body.email, tenant_id,
                 )
                 if user is None:
@@ -2893,7 +2937,7 @@ async def import_users_confirm(
                     """
                     INSERT INTO users (tenant_id, email, password_hash, role, username)
                     VALUES ($1, $2, $3, $4, $5)
-                    ON CONFLICT (tenant_id, email) DO NOTHING
+                    ON CONFLICT DO NOTHING
                     """,
                     tenant_id,email,hashed,role,username,
 

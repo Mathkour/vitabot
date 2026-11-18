@@ -1,0 +1,221 @@
+﻿question,model,answer,chart,tools,rounds,latency_s,tokens,cost_usd,error
+What is our total revenue this month?,sonnet,"I don't have a tool that computes revenue aggregated specifically for a date range like ""this month"" — the verified summary I have is the overall total revenue across all orders (411,101.02), not broken down by month. Raw order/invoice listings are capped at a limited number of records, so summing from those would not give an accurate total and could be misleading.
+
+If it helps, I can pull a list of this month's individual orders or invoices (Nov 1–14, 2026) for you to review, but I can't give you a verified ""total revenue this month"" figure with the tools currently available. Would you like me to list this month's orders/invoices instead?",False,,1,19.9,"{""in"": 372, ""out"": 615, ""cache_write"": 6819, ""cache_read"": 0}",0.02394,
+What is our total revenue this month?,flash,"I can give you the overall total revenue, which is 411,101.02. I do not have the ability to calculate the total revenue for a specific month.",False,,1,15.8,"{""in"": 4735, ""out"": 39, ""thinking"": 752}",0.00340,
+كم عدد الطلبات اليوم؟,sonnet,لا توجد أي طلبات مسجلة اليوم (2026-11-14).,False,search_orders,2,5.2,"{""in"": 380, ""out"": 261, ""cache_write"": 613, ""cache_read"": 13638}",0.00763,
+كم عدد الطلبات اليوم؟,flash,إجمالي عدد الطلبات هو 56.,False,,1,1.0,"{""in"": 4733, ""out"": 10, ""thinking"": 49}",0.00157,
+Who are the top 5 customers this year?,sonnet,"Here are the top 5 customers by total spend (overall figures, as our system tracks lifetime totals rather than a separate ""this year"" breakdown):
+
+1. شركة امواج الطبية — 164,281.23
+2. صيدلية زهرة الاندلس الطبية — 43,972.50
+3. ورقان للمستلزمات الطبية — 39,920.25
+4. بيت العلاج للمستلزمات الطبية — 39,387.46
+5. جمعية رعاية الايتام بالجموم — 37,500.00",True,get_top_customers > present_chart,3,10.4,"{""in"": 379, ""out"": 635, ""cache_write"": 1390, ""cache_read"": 21209}",0.01482,
+Who are the top 5 customers this year?,flash,"The top 5 customers by amount spent this year are:
+1. شركة امواج الطبية: 164281.23
+2. صيدلية زهرة الاندلس الطبية: 43972.5
+3. ورقان للمستلزمات الطبية: 39920.25
+4. بيت العلاج للمستلزمات الطبية: 39387.46
+5. جمعية رعاية الايتام بالجموم: 37500",True,get_top_customers > present_chart,3,5.5,"{""in"": 14831, ""out"": 387, ""thinking"": 53}",0.00555,
+أفضل 10 منتجات مبيعاً هذا الشهر,sonnet,إذا كنت تريد بيانات مقتصرة فعلياً على الشهر الحالي فقط، يمكنني البحث في الطلبات الفردية ضمن هذا النطاق الزمني باستخدام أداة البحث عن الطلبات، لكن النتائج لن تكون بنفس دقة الترتيب الإجمالي. أخبرني إذا أردت ذلك.,True,get_top_products > present_chart,3,15.3,"{""in"": 390, ""out"": 1383, ""cache_write"": 2381, ""cache_read"": 21626}",0.02489,
+أفضل 10 منتجات مبيعاً هذا الشهر,flash,لقد قمت بعرض أفضل 10 منتجات مبيعاً لك.,True,get_top_products > present_chart,3,18.2,"{""in"": 16255, ""out"": 943, ""thinking"": 193}",0.00772,
+Show me a chart of the top products by revenue this month,sonnet,"I've displayed the chart above. A quick note: the top products tool gives overall best-sellers by revenue rather than a month-specific breakdown, so if you need figures strictly for November 2026, let me know and I can check via order/invoice listings instead, though that would require manually totaling individual records rather than a clean aggregate.",True,get_top_products > present_chart,3,10.4,"{""in"": 382, ""out"": 781, ""cache_write"": 1465, ""cache_read"": 21250}",0.01649,
+Show me a chart of the top products by revenue this month,flash,"I apologize, but I cannot provide a chart of the top products by revenue for ""this month"" as the available tools do not support filtering product sales data by a specific date range. I can only provide the top-selling products overall.",False,,1,2.4,"{""in"": 4739, ""out"": 48, ""thinking"": 363}",0.00245,
+Which products are low in stock?,sonnet,"Here are the products currently lowest in stock:
+
+1. DALACIN C 150 MG 16 CAPS — 1 unit
+2. ZINNAT 250 MG 14 TABS — 1 unit
+3. KLACID 250 MG 14 TABS — 1 unit
+4. CEFIM 200 MG 8 CAPS — 1 unit
+5. LIFREE Adult Diaper Compress X-Large 18x2 — -1 unit (oversold/negative stock, needs attention)
+6. SWISSLAC NO 2 MILK 400GM — 2 units
+7. ZINOXIMORE 250 MG 14 TABS — 4 units
+8. LIFREE Adult Culotte Medium Mega 40x2 — 6 units
+9. LIFREE Adult Culotte Large Mega 36x2 — 6 units
+10. Fine Care Adult Diapers Large 18 pcs — 9 units
+
+Most urgent: the LIFREE Adult Diaper Compress X-Large shows negative stock (-1), meaning it's oversold and needs immediate restocking. Several medications (DALACIN C, ZINNAT, KLACID, CEFIM) are also critically low at just 1 unit each.",True,get_stock_levels > present_chart,3,9.3,"{""in"": 375, ""out"": 813, ""cache_write"": 1387, ""cache_read"": 21481}",0.01664,
+Which products are low in stock?,flash,"Here is a list of products with 10 units or less in stock:
+
+1.  [VG005291] DALACIN C 150 MG 16 CAPS: 1 unit
+2.  [VG001104] ZINOXIMORE 250 MG 14 TABS: 4 units
+3.  [VG001078] ZINNAT 250 MG 14 TABS: 1 unit
+4.  [VG002970] KLACID 250 MG 14 TABS: 1 unit
+5.  [VG001887] CEFIM 200 MG 8 CAPS: 1 unit
+6.  [VG022517] LIFREE ADULT DIAPER COMPRESS X-LARGE 18×2-18263: -1 unit (out of stock)
+7.  [VG023330] Fine Care Adult Diapers Large 18 pcs: 9 units
+8.  [VG013458] SWISSLAC NO 2 MILK 400GM: 2 units
+9.  [VG022523] LIFREE ADULT CULOTTE MEDIUM MEGA 40×2-17552: 6 units
+10. [VG022521] LIFREE ADULT CULOTTE LARGE MEGA 36×2-17572: 6 units
+11. [VG013394] FAIR&WHITE PARIS POCKET DEO 50ML: 2 units
+12. [VG002941] KLAVOX 375 MG 20 TABS: 1 unit
+13. مزيل العرق ازرق 50مل: 2 units
+14. [VG001738] CLAVODAR 1 GM 14 TABS: -6 units (out of stock)
+15. [VG022524] LIFREE ADULT CULOTTE X-LARGE 28×2-17480R: -1 unit (out of stock)
+16. [VG008975] VICHY DEO ROLL MINERAL 48 HR BLUE 50ML: 1 unit
+17. [VG023322] Fine Care 20 Under Pads 4*20 (60*90 Cm): -1 unit (out of stock)
+18. [VG008418] HYMOX 250 MG 20 CAPS ملغي: 1 unit
+19. [VG001099] ZITHROMAX 250 MG 6 CAPS: 1 unit",True,get_stock_levels > present_chart,3,12.4,"{""in"": 16488, ""out"": 1072, ""thinking"": 352}",0.00851,
+كم المخزون المتوفر من بنادول؟,sonnet,تم عرض الرسم البياني أعلاه يوضح وضع المخزون الفعلي لأصناف بنادول المختلفة في موقع QDS 5/Stock.,True,get_stock_levels > get_stock_levels > present_chart,4,14.5,"{""in"": 386, ""out"": 1163, ""cache_write"": 2117, ""cache_read"": 28884}",0.02347,
+كم المخزون المتوفر من بنادول؟,flash,,True,get_stock_levels > present_chart,3,7.3,"{""in"": 15565, ""out"": 421, ""thinking"": 880}",0.00792,
+List the unpaid invoices from last week,sonnet,"Only one invoice was issued last week (Nov 2–8, 2026): INV/2026/643362 for customer ""hussein"", dated 2026-11-03, total 46.00, status posted. However, its payment status is already ""paid"" — so there are no unpaid invoices from last week.",False,search_invoices,2,18.3,"{""in"": 376, ""out"": 495, ""cache_write"": 847, ""cache_read"": 13638}",0.01055,
+List the unpaid invoices from last week,flash,"I found one invoice from last week:
+
+Customer: hussein
+Date: 2026-11-03
+Invoice Number: INV/2026/643362
+Payment Status: paid
+Status: posted
+Total: 46
+
+This invoice has a payment status of ""paid"", so there are no unpaid invoices from last week.",False,search_invoices,2,5.6,"{""in"": 9588, ""out"": 123, ""thinking"": 769}",0.00511,
+What are my permissions?,sonnet,"I don't have a current user identity on file for this session, so I can't automatically look up ""your"" permissions. Could you tell me your name or the email you're registered under in the system? I'll look up your access rights right away.",False,,1,3.0,"{""in"": 369, ""out"": 149, ""cache_write"": 0, ""cache_read"": 6819}",0.00359,
+What are my permissions?,flash,"I can tell you your permissions, but I need your name first. What name should I look up?",False,,1,0.9,"{""in"": 4732, ""out"": 21, ""thinking"": 63}",0.00163,
+What access rights does the support team have?,sonnet,"The support team (support@vitacareonline.com) has an extensive set of functional access rights, including:
+
+Administrator-level access in:
+1. Point of Sale / Administrator
+2. Purchase / Administrator
+3. Inventory / Administrator
+4. Sales / Administrator
+5. Employees / Administrator
+
+Invoicing and accounting:
+6. Invoicing / Accountant
+7. Invoicing / Billing
+8. Invoicing / Chief Accountant
+
+Sales:
+9. Sales / User: All Documents
+10. Sales / User: Own Documents Only
+
+Pharmacy management rights:
+11. Pharmacy Manager / Assign Users to Branches
+12. Pharmacy Manager / Change User Password and PIN Code
+13. Pharmacy Manager / Manage Inventory Access Right
+14. Pharmacy Manager / Remove-Archive Users
+15. Pharmacy Admin
+
+Inventory related:
+16. Inventory / Product Price Editing
+17. Inventory / Product Quantity Editing
+18. Inventory / User
+
+Other operational rights:
+19. Purchase / User
+20. Point of Sale / User
+21. Point of Sale / Show Cash Move Button in POS
+22. Point of Sale / Show Sales Analysis Report
+23. Employees / Officer
+24. Refund Manager
+25. Display Order Line Sequence Number
+26. Edit SFDA Codes
+27. User types / Internal User
+
+Custom Vitacare group permissions:
+28. Vitacare Groups / Hide RFQ/PO Send/Print
+29. Vitacare Groups / POS Session Report Manager
+30. Vitacare Groups / Show PO Sales Price
+31. Vitacare Groups / Validate Return PO Picking
+
+Plus a special access entry called ""Access query_deluxe"".
+
+Overall, this account has very broad administrative control across Sales, Inventory, Purchase, Point of Sale, Invoicing/Accounting, Employees, and Pharmacy management areas — essentially a super-user level of functional access (though Administration/Settings and technical permissions are not visible through this tool).",False,get_user_access_rights,2,9.1,"{""in"": 374, ""out"": 777, ""cache_write"": 950, ""cache_read"": 13638}",0.01362,
+What access rights does the support team have?,flash,"The support team (support@vitacareonline.com) has the following access rights:
+
+Access query_deluxe
+Invoicing / Accountant
+Point of Sale / Administrator
+Purchase / Administrator
+Inventory / Administrator
+Sales / Administrator
+Employees / Administrator
+Pharmacy Manager / Assign Users to Branches
+Invoicing / Billing
+Pharmacy Manager / Change User Password and PIN Code
+Invoicing / Chief Accountant
+Display Order Line Sequence Number
+Edit SFDA Codes
+Vitacare Groups / Hide RFQ/PO Send/Print
+User types / Internal User
+Pharmacy Manager / Manage Inventory Access Right
+Employees / Officer
+Pharmacy Admin
+Vitacare Groups / POS Session Report Manager
+Inventory / Product Price Editing
+Inventory / Product Quantity Editing
+Refund Manager
+Pharmacy Manager / Remove-Archive Users
+Point of Sale / Show Cash Move Button in POS
+Vitacare Groups / Show PO Sales Price
+Point of Sale / Show Sales Analysis Report
+Purchase / User
+Point of Sale / User
+Inventory / User
+Sales / User: All Documents
+Sales / User: Own Documents Only
+Vitacare Groups / Validate Return PO Picking",False,get_user_access_rights,2,3.4,"{""in"": 9781, ""out"": 249, ""thinking"": 50}",0.00368,
+Which warehouses do we have?,sonnet,"We have 24 warehouses in total:
+
+1. Main Warehouse (رئيسي)
+2. المجاهدين 1 (MOJ1)
+3. الحسينية2 (HUS2)
+4. وادي جليل 3 (WADI3)
+5. الشرايع 4 (SHA4)
+6. القادسية 5 (QDS 5)
+7. وادي جليل 6 (Wadi6)
+8. الفردوس 7 (FRD 7)
+9. البحيرات 8 (BOH 8)
+10. الزايدي 9 (ZAI 9)
+11. العوالي 10 (AWA10)
+12. الجموم 11 (JOM11)
+13. الحوية (HOYA)
+14. شهار 12 (SHE12)
+15. الشرايع-15 (SHA15)
+16. الزاهر 14 (Zah14)
+17. العسيلة 13 (USA13)
+18. الراشدية 16 (RAS16)
+19. الشرائع 17 (SHA17)
+20. الجموم-18 (JOM18)
+21. الجموم ١٩ (JOM19)
+22. الشامل 16 (SHA16)
+23. الراشدية - warehouse # 25 (cw25)
+24. الأمير فواز13 (FAW13)
+25. العمرة 20 (OMR20)
+
+(Note: that's actually 25 listed entries.)",False,get_warehouses,2,5.6,"{""in"": 374, ""out"": 489, ""cache_write"": 1010, ""cache_read"": 13638}",0.01089,
+Which warehouses do we have?,flash,"We have the following warehouses:
+Main Warehouse
+المجاهدين 1
+الحسينية2
+وادي جليل 3
+الشرايع 4
+القادسية 5
+وادي جليل 6
+الفردوس 7
+البحيرات 8
+الزايدي 9
+العوالي 10
+الجموم 11
+الحوية
+شهار 12
+الشرايع-15
+الزاهر 14
+العسيلة 13
+الراشدية 16
+الشرائع 17
+الجموم-18
+الجموم ١٩
+الشامل 16
+الراشدية - warehouse # 25
+الأمير فواز13
+العمرة 20",False,get_warehouses,2,2.6,"{""in"": 9961, ""out"": 178, ""thinking"": 100}",0.00368,
+Compare sales this month with last month,sonnet,"The chart above illustrates the gap: October had 8 orders worth roughly 13,615.80 in total, while November has had no orders recorded yet through November 14th. Keep in mind the month is still in progress, so this isn't a final comparison.",True,search_orders > search_orders > present_chart,3,16.5,"{""in"": 376, ""out"": 1391, ""cache_write"": 2241, ""cache_read"": 22220}",0.02471,
+Compare sales this month with last month,flash,"I cannot compare sales this month with last month using my current tools. I can provide overall sales summaries or search for specific orders/invoices, but I don't have a function to aggregate sales data for arbitrary time periods like ""this month"" or ""last month"" for direct comparison.",False,,1,2.0,"{""in"": 4734, ""out"": 59, ""thinking"": 203}",0.00208,
+مين أكثر عميل اشترى من أول السنة؟,sonnet,"أكثر عميل اشترى (إجمالي الإنفاق) هو شركة امواج الطبية بإجمالي 164,281.23.
+
+ملاحظة: هذا الرقم يمثل إجمالي ما أنفقه العميل عبر كل الفترة المتوفرة في النظام، وليس لدي أداة تسمح بحساب الترتيب مقتصرًا فقط على الفترة منذ بداية السنة الحالية بدقة. إذا أردت، يمكنني عرض طلبات هذا العميل تفصيليًا منذ بداية السنة لتتأكد بنفسك.",False,get_top_customers,2,12.3,"{""in"": 385, ""out"": 778, ""cache_write"": 980, ""cache_read"": 13638}",0.01373,
+مين أكثر عميل اشترى من أول السنة؟,flash,أكثر عميل اشترى من أول السنة هو شركة امواج الطبية بمبلغ 164281.23.,False,,1,3.1,"{""in"": 4737, ""out"": 28, ""thinking"": 507}",0.00276,
+How do I create a new sales order?,sonnet,"I don't have specific company manual guidance provided here on creating a new sales order, so I can't give you exact verified steps for your setup. I'd recommend asking in the main chat assistant for precise guidance on this.",False,,1,2.7,"{""in"": 372, ""out"": 149, ""cache_write"": 0, ""cache_read"": 6819}",0.00360,
+How do I create a new sales order?,flash,I don't have specific guidance on how to create a new sales order in Odoo in my current instructions. You may want to ask the main chat assistant for help with this procedural question.,False,,1,1.0,"{""in"": 4736, ""out"": 39, ""thinking"": 79}",0.00172,
